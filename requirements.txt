@@ -1,0 +1,15 @@
+# Core PyTorch and Transformer stack
+torch>=2.0.0
+transformers>=4.35.0
+sentence-transformers>=2.2.0
+safetensors>=0.4.0
+accelerate>=0.24.0
+
+# Interactive Web Application & API
+Flask>=3.0.0
+flask-cors>=4.0.0
+
+# Natural Language Processing & Scientific Computing
+numpy>=1.24.0
+scipy>=1.10.0
+spacy>=3.7.0

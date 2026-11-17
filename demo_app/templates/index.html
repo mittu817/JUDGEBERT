@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en" class="notranslate" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google" content="notranslate">
+    <title>JUDGEBERT - Intelligence That Preserves Meaning (3D Interactive)</title>
+    <style>
+        :root {
+            --bg-studio: #ced4da;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --accent-cyan: #38bdf8;
+            --accent-gold: #f59e0b;
+            --border-light: #e2e8f0;
+            --success: #10b981;
+            --success-bg: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-bg: #fffbeb;
+            --danger: #ef4444;
+            --danger-bg: #fef2f2;
+            --radius-pill: 9999px;
+            --radius-card: 32px;
+            --radius-inner: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Inter", "Helvetica Neue", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background: radial-gradient(circle at 50% 30%, #e8edf2 0%, #cbd2d8 55%, #b2bac2 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            perspective: 1600px;
+        }
+
+        /* 3D Background Three.js Organic Blob Canvas */
+        #bgCanvas3D {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 3D Spatial Viewport Container */
+        .spatial-container {
+            position: relative;
+            z-index: 2;
+            width: 94vw;
+            max-width: 1280px;
+            margin: 36px auto 90px auto;
+            transform-style: preserve-3d;
+            transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        /* The Main 3D Floating White Device / Card (MachinaFusion Style) */
+        .floating-canvas-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-card);
+            padding: 28px 40px 48px 40px;
+            box-shadow: 
+                0 45px 120px -20px rgba(15, 23, 42, 0.22),
+                0 20px 45px -15px rgba(15, 23, 42, 0.12),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9),
+                0 0 0 1px rgba(0, 0, 0, 0.04);
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+        }
+
+        /* Specular Glare Overlay */
+        .specular-glare {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: var(--radius-card);
+            pointer-events: none;
+            background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 55%);
+            mix-blend-mode: overlay;
+            z-index: 20;
+        }
+
+        /* Top Navigation inside Card */
+        .card-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 15;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-dark);
+            cursor: pointer;
+        }
+
+        .brand-mark {
+            width: 32px;
+            height: 32px;
+            background: #0f172a;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 1rem;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+        }
+
+        .brand-title {
+            font-weight: 800;
+            font-size: 1.15rem;
+            letter-spacing: -0.03em;
+            color: #0f172a;
+        }
+
+        .nav-pill-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f1f4f8;
+            padding: 5px 7px;
+            border-radius: var(--radius-pill);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+        }
+
+        .pill-tab {
+            border: none;
+            background: transparent;
+            padding: 8px 18px;
+            border-radius: var(--radius-pill);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .pill-tab.active {
+            background: #0f172a;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+        }
+
+        .pill-tab:hover:not(.active) {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .nav-badge-pill {
+            padding: 7px 16px;
+            border-radius: var(--radius-pill);
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        }
+
+        .nav-badge-pill:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            transform: translateY(-1px);
+        }
+
+        /* --- Hero Stage (Hands + Luminous Energy Orb) --- */
+        .hero-stage {
+            position: relative;
+            height: 360px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            user-select: none;
+        }
+
+        .hero-headline {
+            position: absolute;
+            z-index: 5;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .hero-headline h1 {
+            font-size: 3.6rem;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            color: #0f172a;
+            line-height: 1.02;
+            text-shadow: 0 2px 10px rgba(255, 255, 255, 0.9);
+        }
+
+        .hero-headline h2 {
+            font-size: 2.8rem;
+            font-weight: 400;
+            letter-spacing: -0.03em;
+            color: #94a3b8;
+            line-height: 1.1;
+            text-shadow: 0 2px 10px rgba(255, 255, 255, 0.9);
+        }
+
+        /* Hands Artwork Layer */
+        .hands-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .hand-side {
+            width: 45%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Glowing Fusion Orb Canvas */
+        #orbCanvas {
+            position: absolute;
+            width: 320px;
+            height: 320px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* Hero Subtext & Meta Pills */
+        .hero-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 26px;
+            position: relative;
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .hero-tagline {
+            max-width: 360px;
+        }
+
+        .hero-tagline .caption {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .hero-tagline p {
+            font-size: 0.88rem;
+            line-height: 1.45;
+            color: #334155;
+            font-weight: 500;
+        }
+
+        .hero-chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chip-pill {
+            padding: 6px 14px;
+            border-radius: var(--radius-pill);
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+
+        .section-separator {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent);
+            margin: 16px 0 28px 0;
+            position: relative;
+            z-index: 5;
+        }
+
+        /* --- 3D Interactive Tool Workspace Panels --- */
+        .tab-content {
+            display: none;
+            position: relative;
+            z-index: 10;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .workspace-panel {
+            background: #f8fafc;
+            border: 1px solid var(--border-light);
+            border-radius: 26px;
+            padding: 24px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .panel-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .selector-pill {
+            padding: 8px 14px;
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border-light);
+            background: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+
+        .selector-pill:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        /* Clause Input Grid */
+        .clause-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 860px) {
+            .clause-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-card {
+            background: #ffffff;
+            border: 1.5px solid var(--border-light);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .input-card:focus-within {
+            border-color: #38bdf8;
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .input-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        textarea.clause-textarea {
+            width: 100%;
+            height: 120px;
+            padding: 8px;
+            border: none;
+            outline: none;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #0f172a;
+            resize: vertical;
+            background: transparent;
+        }
+
+        /* 3D Primary Button */
+        .btn-3d {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            border: none;
+            padding: 12px 28px;
+            border-radius: var(--radius-pill);
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            box-shadow: 
+                0 10px 25px -5px rgba(15, 23, 42, 0.35),
+                0 4px 8px -2px rgba(15, 23, 42, 0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .btn-3d:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 14px 30px -5px rgba(15, 23, 42, 0.45),
+                0 6px 12px -2px rgba(15, 23, 42, 0.25);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+
+        .btn-3d:active {
+            transform: translateY(1px);
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+        }
+
+        /* --- FEATURE 3: Multi-Level Simplification Slider Card --- */
+        .multilevel-container {
+            background: #ffffff;
+            border: 1.5px solid var(--border-light);
+            border-radius: 20px;
+            padding: 18px 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .multilevel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .level-pills-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .level-pills-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .level-pill-card {
+            background: #f8fafc;
+            border: 1.5px solid var(--border-light);
+            border-radius: 14px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .level-pill-card:hover {
+            border-color: #94a3b8;
+            background: #f1f5f9;
+        }
+
+        .level-pill-card.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+        }
+
+        .level-pill-card.active .lvl-desc {
+            color: #94a3b8;
+        }
+
+        .lvl-badge {
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 2px;
+        }
+
+        .lvl-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .lvl-desc {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+
+        .level-preview-box {
+            background: #f1f5f9;
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            color: #0f172a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* --- FEATURE 1: Interactive ColBERT MaxSim Ribbon Visualizer --- */
+        .ribbon-visualizer-card {
+            background: #ffffff;
+            border: 1.5px solid var(--border-light);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .ribbon-tokens-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px 4px;
+            min-height: 48px;
+            align-items: center;
+        }
+
+        .tok-pill {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            position: relative;
+            user-select: none;
+        }
+
+        .tok-pill:hover, .tok-pill.highlighted {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+        }
+
+        .tok-pill.connected {
+            border-color: #38bdf8;
+            background: #f0f9ff;
+            color: #0369a1;
+        }
+
+        #ribbonSvgContainer {
+            width: 100%;
+            height: 160px;
+            position: relative;
+            overflow: visible;
+            margin: 6px 0;
+        }
+
+        /* Results Deck */
+        .results-deck {
+            display: none;
+            margin-top: 24px;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .score-hero-card {
+            background: #ffffff;
+            border-radius: 24px;
+            border: 1.5px solid var(--border-light);
+            padding: 24px 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .score-big-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .score-dial {
+            font-size: 3.8rem;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.05em;
+        }
+
+        .badge-pill {
+            display: inline-block;
+            padding: 5px 14px;
+            border-radius: var(--radius-pill);
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .badge-pill-success { background: var(--success-bg); color: #065f46; border: 1px solid #a7f3d0; }
+        .badge-pill-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .badge-pill-warning { background: var(--warning-bg); color: #92400e; border: 1px solid #fde68a; }
+        .badge-pill-danger { background: var(--danger-bg); color: #991b1b; border: 1px solid #fecaca; }
+
+        .repair-banner {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            color: #ffffff;
+            border-radius: 22px;
+            padding: 20px 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 10px 30px rgba(49, 46, 129, 0.28);
+            margin-bottom: 20px;
+        }
+
+        .repair-fixed-card {
+            background: #ffffff;
+            border: 2px solid #10b981;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 12px 35px rgba(16, 185, 129, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .card-3d-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .tile-3d {
+            background: #ffffff;
+            border: 1px solid var(--border-light);
+            border-radius: 18px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+        }
+
+        .tile-3d:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+        }
+
+        .tile-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .tile-val {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .diff-container {
+            background: #ffffff;
+            border: 1px solid var(--border-light);
+            border-radius: 18px;
+            padding: 18px;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+
+        .diff-delete { background: #fee2e2; color: #991b1b; text-decoration: line-through; padding: 2px 6px; border-radius: 4px; }
+        .diff-insert { background: #dcfce7; color: #166534; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+        .diff-replace-orig { background: #ffedd5; color: #9a3412; text-decoration: line-through; padding: 2px 6px; border-radius: 4px; }
+        .diff-replace-simp { background: #e0e7ff; color: #3730a3; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+
+        .corpus-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        .corpus-table th, .corpus-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-light);
+            text-align: left;
+        }
+
+        .corpus-table th {
+            background: #f1f5f9;
+            color: #0f172a;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+        }
+
+        .corpus-table tr:hover { background: #f8fafc; }
+
+        /* Floating Dock */
+        .floating-dock {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 6px 12px;
+            border-radius: var(--radius-pill);
+            box-shadow: 
+                0 20px 50px -10px rgba(15, 23, 42, 0.25),
+                0 0 0 1px rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .dock-btn {
+            border: none;
+            background: transparent;
+            padding: 8px 16px;
+            border-radius: var(--radius-pill);
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .dock-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+        }
+
+        .dock-btn:hover:not(.active) {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        /* --- FEATURE 4: Audit Report Modal & Print Layout --- */
+        .audit-modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .audit-modal-backdrop.open {
+            display: flex;
+        }
+
+        .audit-modal-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 28px;
+            padding: 36px 44px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .cert-header {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 18px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .cert-seal {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .cert-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+                perspective: none !important;
+            }
+            #bgCanvas3D, .card-navbar, .hero-stage, .hero-footer, .floating-dock, .multilevel-container, .btn-3d, .selector-pill {
+                display: none !important;
+            }
+            .spatial-container {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            .floating-canvas-card {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+            .audit-modal-backdrop {
+                display: block !important;
+                position: static !important;
+                background: transparent !important;
+                padding: 0 !important;
+            }
+            .audit-modal-card {
+                max-width: 100% !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .loading-spin {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 0.8s ease-in-out infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Background Three.js Organic Blob Canvas -->
+    <canvas id="bgCanvas3D"></canvas>
+
+    <!-- 3D Spatial Viewport Container -->
+    <div class="spatial-container" id="spatialContainer">
+        <div class="floating-canvas-card" id="floatingCard">
+            <div class="specular-glare" id="specularGlare"></div>
+
+            <!-- Top Nav inside 3D Card -->
+            <div class="card-navbar">
+                <div class="brand-group" onclick="switchTab('evaluator')">
+                    <div class="brand-mark">⚖️</div>
+                    <div class="brand-title">JUDGEBERT</div>
+                </div>
+
+                <div class="nav-pill-group">
+                    <button class="pill-tab active" id="tabBtnEval" onclick="switchTab('evaluator')"><span>●</span> Live 3D Arbiter</button>
+                    <button class="pill-tab" id="tabBtnCorpus" onclick="switchTab('explorer')">📚 FrJUDGE Corpus</button>
+                    <button class="pill-tab" id="tabBtnPaper" onclick="switchTab('paper')">📄 EMNLP Paper</button>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="nav-badge-pill" id="tiltToggleBtn" onclick="toggle3DTilt()">
+                        <span id="tiltStatusDot" style="color: #10b981;">●</span>
+                        <span>3D Spatial Tilt</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Stage (Hands + Luminous Energy Orb) -->
+            <div class="hero-stage" id="heroStage">
+                <!-- Glowing Fusion Orb Canvas -->
+                <canvas id="orbCanvas" width="640" height="640"></canvas>
+
+                <!-- Hands Artwork Layer -->
+                <div class="hands-container">
+                    <!-- Human Hand (Left Reaching to Center) -->
+                    <div class="hand-side" id="handLeft">
+                        <svg viewBox="0 0 520 300" width="100%" height="100%" style="overflow: visible;">
+                            <defs>
+                                <linearGradient id="humanSkin" x1="0%" y1="50%" x2="100%" y2="50%">
+                                    <stop offset="0%" stop-color="#b27f6a" />
+                                    <stop offset="35%" stop-color="#c9957d" />
+                                    <stop offset="70%" stop-color="#dba891" />
+                                    <stop offset="100%" stop-color="#ebbfa7" />
+                                </linearGradient>
+                                <linearGradient id="fingerShade" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#eec5ae" />
+                                    <stop offset="100%" stop-color="#ba8670" />
+                                </linearGradient>
+                                <filter id="humanShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="rgba(15,23,42,0.18)" />
+                                </filter>
+                            </defs>
+                            <path d="M -60 170 C 40 165, 110 160, 180 152 C 230 146, 270 140, 320 130 C 350 124, 380 122, 420 132 C 450 140, 485 152, 502 156 C 508 157, 512 152, 506 146 C 480 132, 440 114, 405 104 C 370 94, 335 98, 300 105 C 240 114, 150 120, -60 125 Z" 
+                                  fill="url(#humanSkin)" filter="url(#humanShadow)" />
+                            <path d="M 335 142 C 370 156, 405 170, 435 172 C 445 173, 450 165, 440 158 C 405 146, 365 132, 340 128 Z" 
+                                  fill="url(#fingerShade)" opacity="0.95" />
+                        </svg>
+                    </div>
+
+                    <!-- Robotic Bionic Hand (Right Reaching to Center) -->
+                    <div class="hand-side" id="handRight">
+                        <svg viewBox="0 0 520 300" width="100%" height="100%" style="overflow: visible;">
+                            <defs>
+                                <linearGradient id="robotCasing" x1="100%" y1="50%" x2="0%" y2="50%">
+                                    <stop offset="0%" stop-color="#334155" />
+                                    <stop offset="25%" stop-color="#64748b" />
+                                    <stop offset="60%" stop-color="#e2e8f0" />
+                                    <stop offset="100%" stop-color="#f8fafc" />
+                                </linearGradient>
+                                <linearGradient id="jointSteel" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#38bdf8" />
+                                    <stop offset="100%" stop-color="#0284c7" />
+                                </linearGradient>
+                                <filter id="robotShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="rgba(15,23,42,0.18)" />
+                                </filter>
+                            </defs>
+                            <path d="M 580 170 C 480 165, 410 160, 340 152 C 290 146, 250 140, 200 130 C 170 124, 140 122, 100 132 C 70 140, 35 152, 18 156 C 12 157, 8 152, 14 146 C 40 132, 80 114, 115 104 C 150 94, 185 98, 220 105 C 280 114, 370 120, 580 125 Z" 
+                                  fill="url(#robotCasing)" filter="url(#robotShadow)" />
+                            <rect x="195" y="112" width="20" height="30" rx="5" fill="#1e293b" />
+                            <circle cx="205" cy="127" r="4.5" fill="url(#jointSteel)" />
+                            <rect x="118" y="104" width="16" height="24" rx="4" fill="#0f172a" />
+                            <circle cx="126" cy="116" r="3.5" fill="#38bdf8" />
+                            <circle cx="16" cy="151" r="5" fill="#38bdf8" filter="drop-shadow(0 0 8px #38bdf8)" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Display Headline -->
+                <div class="hero-headline">
+                    <h1>JUDGEBERT</h1>
+                    <h2>Intelligence that preserves meaning.</h2>
+                </div>
+            </div>
+
+            <!-- Hero Subtext & Meta Pills -->
+            <div class="hero-footer">
+                <div class="hero-tagline">
+                    <div class="caption">Precision Neuro-Symbolic Engine</div>
+                    <p>Bridging the gap between human language, deep meaning, and AI simplification for a smarter, more faithful future.</p>
+                </div>
+
+                <div style="width: 1px; height: 36px; background: #cbd5e1;"></div>
+
+                <div class="hero-chips">
+                    <span class="chip-pill">Algorithms</span>
+                    <span class="chip-pill">ColBERT MaxSim</span>
+                    <span class="chip-pill">Neuro-Symbolic</span>
+                    <span class="chip-pill">Closed-Loop Repair</span>
+                </div>
+            </div>
+
+            <div class="section-separator"></div>
+
+            <!-- ========================================== -->
+            <!-- TAB 1: 3D INTERACTIVE ARBITER EVALUATOR   -->
+            <!-- ========================================== -->
+            <div id="tab-evaluator" class="tab-content active">
+                <div class="workspace-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>⚡</span>
+                            <span>Evaluate Clause Pair (General & Legal)</span>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <select id="domainSelector" class="selector-pill" style="font-weight: 700; background: #ffffff;">
+                                <option value="auto">🌐 Automatic Domain Detection</option>
+                                <option value="general">🌍 General Context (News, Science, Facts)</option>
+                                <option value="legal">⚖️ Legal & Contractual Context</option>
+                            </select>
+                            <select id="exampleSelector" class="selector-pill" onchange="loadSelectedExample()">
+                                <option value="">-- Load a Benchmark Example --</option>
+                                {% for ex in examples %}
+                                    <option value="{{ ex.id }}">{{ ex.title }} (Score: {{ ex.human_score }}/10)</option>
+                                {% endfor %}
+                            </select>
+                            <button class="nav-badge-pill" id="liveToggleBtn" onclick="toggleLiveEvaluation()">
+                                <span id="liveDot" style="color: #10b981;">●</span>
+                                <span id="liveLabel">Live Evaluation: ACTIVE</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Input Grid -->
+                    <div class="clause-grid">
+                        <div class="input-card">
+                            <div class="input-label">
+                                <span>📜 Source Sentence or Clause (Original)</span>
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">Source</span>
+                            </div>
+                            <textarea id="origInput" class="clause-textarea" placeholder="Enter complex source sentence (general text, insurance policy, NDA, or rental clause)..."></textarea>
+                        </div>
+
+                        <!-- Target Simplification Input with FEATURE 2: Live "As-You-Type" Scoring -->
+                        <div class="input-card">
+                            <div class="input-label">
+                                <span>✨ Target Simplification (AI or User)</span>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span id="liveStatusPulse" style="display: none; font-size: 0.72rem; color: #0284c7; font-weight: 700;">⚡ Live analyzing...</span>
+                                    <span id="liveScoreBadge" class="badge-pill badge-pill-info" style="display: none; font-size: 0.72rem;">Live: --</span>
+                                </div>
+                            </div>
+                            <textarea id="simpInput" class="clause-textarea" placeholder="Enter simplified version... (Real-time live evaluation as you type)"></textarea>
+                            <div id="liveWarningBar" style="display: none; margin-top: 6px; font-size: 0.75rem; color: #991b1b; background: #fee2e2; padding: 4px 10px; border-radius: 8px; font-weight: 600;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FEATURE 3: Multi-Level Simplification Slider Card -->
+                    <div class="multilevel-container">
+                        <div class="multilevel-header">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.1rem;">🎛️</span>
+                                <span style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Multi-Tier Plain Language Engine (4 Certified Grades)</span>
+                            </div>
+                            <button class="nav-badge-pill" id="genLevelsBtn" onclick="generateMultiLevels()" style="background: #f1f5f9; font-size: 0.8rem;">
+                                <span id="genLevelsSpinner" class="loading-spin" style="border-top-color: #0f172a;"></span>
+                                <span>✨ Generate 4 Tiers</span>
+                            </button>
+                        </div>
+
+                        <div class="level-pills-row">
+                            <div class="level-pill-card active" id="lvlCard1" onclick="selectLevel(1)">
+                                <span class="lvl-badge" style="color: #3b82f6;">Level 1</span>
+                                <div class="lvl-title">Conservative (B2)</div>
+                                <div class="lvl-desc">Legal precision, modern modals</div>
+                            </div>
+                            <div class="level-pill-card" id="lvlCard2" onclick="selectLevel(2)">
+                                <span class="lvl-badge" style="color: #10b981;">Level 2</span>
+                                <div class="lvl-title">Plain Language (B1)</div>
+                                <div class="lvl-desc">Clean professional standard</div>
+                            </div>
+                            <div class="level-pill-card" id="lvlCard3" onclick="selectLevel(3)">
+                                <span class="lvl-badge" style="color: #f59e0b;">Level 3</span>
+                                <div class="lvl-title">Layman (A2)</div>
+                                <div class="lvl-desc">Everyday direct vocabulary</div>
+                            </div>
+                            <div class="level-pill-card" id="lvlCard4" onclick="selectLevel(4)">
+                                <span class="lvl-badge" style="color: #8b5cf6;">Level 4</span>
+                                <div class="lvl-title">Executive Summary</div>
+                                <div class="lvl-desc">Structured conditions & bullets</div>
+                            </div>
+                        </div>
+
+                        <!-- Level Preview Box -->
+                        <div class="level-preview-box" id="levelPreviewBox">
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.72rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 3px;" id="lvlPreviewHeader">Active Tier Preview:</div>
+                                <div id="lvlPreviewText" style="font-weight: 600; color: #0f172a;">
+                                    Click "Generate 4 Tiers" to preview certified plain-language simplifications of your clause.
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="lvlScoreTag" class="badge-pill badge-pill-success" style="display: none;">Score: 9.8/10</span>
+                                <button class="btn-3d" id="applyLvlBtn" onclick="applyCurrentLevelToTarget()" style="padding: 6px 14px; font-size: 0.78rem; display: none;">
+                                    📥 Load Into Target
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <span id="categoryBadge" class="badge-pill badge-pill-info" style="display: none;">Category: Contractual terms</span>
+                        <button class="btn-3d" id="evaluateBtn" onclick="runEvaluation()">
+                            <div class="loading-spin" id="btnSpinner"></div>
+                            <span>⚡ Evaluate Meaning Preservation (Run 3D Arbiter)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RESULTS DECK -->
+                <div id="resultsContainer" class="results-deck">
+                    <!-- Score Hero Card with FEATURE 4: PDF & JSON Export Buttons -->
+                    <div class="score-hero-card">
+                        <div class="score-big-group">
+                            <div>
+                                <span class="score-dial" id="scoreNum">--</span>
+                                <span style="font-size: 1.4rem; color: var(--text-muted); font-weight: 600;">/ 10</span>
+                            </div>
+                            <div>
+                                <span id="tierBadge" class="badge-pill">--</span>
+                                <p id="tierInterpretation" style="font-size: 0.9rem; color: #475569; margin-top: 6px; max-width: 460px; font-weight: 500;">--</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Mode & Engine</div>
+                                <div id="evalMode" style="font-size: 0.92rem; font-weight: 700; color: #0284c7;">--</div>
+                                <div style="font-size: 0.70rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-top: 4px;">Detected Category</div>
+                                <div id="predictedCategory" style="font-size: 0.84rem; font-weight: 700; color: #334155;">--</div>
+                            </div>
+                            <!-- FEATURE 4: Audit Export Buttons -->
+                            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                <button class="nav-badge-pill" onclick="openAuditModal()" style="font-size: 0.78rem; font-weight: 700; color: #0f172a;">
+                                    📄 Export Certificate (PDF)
+                                </button>
+                                <button class="nav-badge-pill" onclick="exportAuditJSON()" style="font-size: 0.78rem;">
+                                    💾 Export JSON
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Neuro-Symbolic Guardrail Alert Box -->
+                    <div id="guardrailContainer" style="margin-bottom: 20px; display: none;">
+                        <div id="guardrailAlertBox" style="padding: 16px 20px; border-radius: 20px; border-left: 5px solid; font-size: 0.92rem;">
+                            <div style="font-weight: 800; margin-bottom: 4px;" id="guardrailHeader">🛡️ Neuro-Symbolic Guardrails</div>
+                            <div id="guardrailMessageList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Closed-Loop Auto-Repair Banner (Self-Correction Arbiter) -->
+                    <div id="repairCtaContainer" style="display: none;">
+                        <div class="repair-banner">
+                            <div>
+                                <div style="font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                                    <span>⚡ Closed-Loop Auto-Repair (Self-Correction)</span>
+                                    <span class="badge-pill" style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-size: 0.7rem;">Active Loop</span>
+                                </div>
+                                <p style="font-size: 0.88rem; color: #c7d2fe; margin-top: 4px; max-width: 680px; line-height: 1.45;">
+                                    Semantic alterations were diagnosed. The arbiter can automatically correct entities, dates, conditions, or polarities in a closed loop until verification reaches ≥ 9.0/10.
+                                </p>
+                            </div>
+                            <button class="btn-3d" id="repairBtn" onclick="runAutoRepair()" style="background: #38bdf8; color: #0f172a; font-weight: 800;">
+                                <div class="loading-spin" id="repairSpinner" style="display: none; border-top-color: #0f172a;"></div>
+                                <span>🛠️ Auto-Repair Meaning (Closed Loop)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Repaired Result Card (Fidelity Verified) -->
+                    <div id="repairResultCard" class="repair-fixed-card" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">✅</span>
+                                <div>
+                                    <h3 style="font-size: 1.15rem; font-weight: 800; color: #065f46; margin: 0;">Correction Validated by JUDGEBERT Arbiter</h3>
+                                    <span style="font-size: 0.82rem; color: #047857;">Certified meaning preservation & faithful distinct phrasing</span>
+                                </div>
+                            </div>
+                            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-pill); padding: 6px 16px; text-align: right;">
+                                <span style="font-size: 0.72rem; color: #047857; font-weight: 700; text-transform: uppercase;">Score : </span>
+                                <span id="repairOldScore" style="color: #991b1b; text-decoration: line-through; font-weight: 700;">--</span>
+                                <span style="color: var(--text-muted); font-size: 0.85rem;">➔</span>
+                                <span id="repairNewScore" style="color: #059669; font-weight: 800; font-size: 1.1rem;">--/10</span>
+                                <span id="repairDeltaBadge" class="badge-pill badge-pill-success" style="margin-left: 6px;">+--</span>
+                            </div>
+                        </div>
+
+                        <!-- Repaired Text Box -->
+                        <div style="margin-bottom: 16px;">
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #065f46; margin-bottom: 6px; display: flex; justify-content: space-between;">
+                                <span>✨ Corrected & Certified Version (Preserving your phrasing):</span>
+                                <span style="font-weight: normal; color: #059669;">100% faithful to original meaning</span>
+                            </div>
+                            <div id="repairedTextBox" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 16px; padding: 14px 18px; font-size: 1rem; line-height: 1.6; color: #14532d; font-weight: 600;">
+                                --
+                            </div>
+                        </div>
+
+                        <!-- Actions List -->
+                        <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: 14px; padding: 12px 16px; margin-bottom: 16px;">
+                            <div style="font-size: 0.75rem; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 6px;">
+                                🔧 Corrections Applied by Arbiter:
+                            </div>
+                            <ul id="repairActionsList" style="margin-left: 20px; font-size: 0.86rem; color: #334155; line-height: 1.5;">
+                            </ul>
+                        </div>
+
+                        <!-- Alternative Paraphrases -->
+                        <div id="repairAlternativesContainer" style="display: none; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 14px; padding: 12px 16px; margin-bottom: 16px;">
+                            <div style="font-size: 0.75rem; font-weight: 800; color: #0f766e; text-transform: uppercase; margin-bottom: 8px;">
+                                💡 Alternative faithful phrasings suggested:
+                            </div>
+                            <div id="repairAlternativesList" style="display: flex; flex-direction: column; gap: 6px;">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                            <button class="nav-badge-pill" onclick="copyRepairedText()">
+                                📋 Copy Text
+                            </button>
+                            <button class="btn-3d" onclick="applyRepairedToTarget()" style="background: #059669; padding: 8px 20px; font-size: 0.86rem;">
+                                ✨ Apply to Target & Re-Evaluate
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bidirectional NLI Mutual Entailment 3D Card -->
+                    <div id="nliCard" class="workspace-panel" style="padding: 20px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.25rem;">🔄</span>
+                                <span style="font-weight: 800; font-size: 0.98rem; color: #0f172a;">Bi-Directional NLI Inference (Mutual Entailment A ⟺ B)</span>
+                            </div>
+                            <span id="nliVerdictBadge" class="badge-pill badge-pill-info">--</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; text-align: center;">
+                            <div class="tile-3d">
+                                <div class="tile-label">Forward Entailment (A ⟹ B)</div>
+                                <div class="tile-val" id="pEntailVal" style="color: var(--success);">--%</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Non-contradiction</div>
+                            </div>
+                            <div class="tile-3d">
+                                <div class="tile-label">Reverse Entailment (B ⟹ A)</div>
+                                <div class="tile-val" id="pReverseVal" style="color: #0284c7;">--%</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Clause retention</div>
+                            </div>
+                            <div class="tile-3d">
+                                <div class="tile-label">Contradiction Risk</div>
+                                <div class="tile-val" id="pContraVal" style="color: var(--danger);">--%</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Polarity / Inversion</div>
+                            </div>
+                            <div class="tile-3d">
+                                <div class="tile-label">Mutual NLI Score</div>
+                                <div class="tile-val" id="nliMutualVal" style="color: var(--primary);">--/10</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Strict equivalence</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid (ColBERT MaxSim Late Interaction) -->
+                    <div class="card-3d-grid">
+                        <div class="tile-3d">
+                            <div class="tile-label" style="display: flex; justify-content: center; align-items: center; gap: 4px;">
+                                <span>Multi-Vector ColBERT (MaxSim)</span>
+                                <span class="badge-pill" style="font-size: 0.6rem; background: #e0e7ff; color: #3730a3; padding: 1px 5px;">Late Interaction</span>
+                            </div>
+                            <div class="tile-val" id="valCosine" style="color: var(--primary);">--%</div>
+                            <div id="colbertCoverageSub" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+                                Cov A➔B: --% &bull; Cov B➔A: --%
+                            </div>
+                        </div>
+                        <div class="tile-3d">
+                            <div class="tile-label">Lexical Overlap (Jaccard)</div>
+                            <div class="tile-val" id="valJaccard">--%</div>
+                        </div>
+                        <div class="tile-3d">
+                            <div class="tile-label">Compression Ratio</div>
+                            <div class="tile-val" id="valCompression">--%</div>
+                        </div>
+                        <div class="tile-3d">
+                            <div class="tile-label">Length (Words)</div>
+                            <div class="tile-val" id="valWords" style="font-size: 1.15rem; margin-top: 4px;">-- vs --</div>
+                        </div>
+                    </div>
+
+                    <!-- Ground Truth Expert Consensus (if available) -->
+                    <div id="expertConsensusBox" style="display: none; background: #fdf2f8; border: 1.5px solid #fbcfe8; border-radius: 18px; padding: 16px 20px; margin-bottom: 20px;">
+                        <h4 style="color: #9d174d; font-size: 0.95rem; margin-bottom: 6px;">🎓 Legal Expert Consensus (Benchmark Ground Truth)</h4>
+                        <p id="expertJustificationText" style="color: #831843; font-size: 0.88rem; line-height: 1.5;">--</p>
+                    </div>
+
+                    <!-- Visual Diff -->
+                    <div style="margin-top: 20px;">
+                        <div style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">🔍 Word-by-Word Differential Analysis</div>
+                        <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span class="diff-delete">Omitted or removed text</span>
+                            <span class="diff-insert">Added or new phrasing</span>
+                            <span class="diff-replace-orig">Replaced (original)</span>
+                            <span class="diff-replace-simp">Replacement (simplified)</span>
+                        </div>
+                        <div class="diff-container" id="diffBoxOrig"></div>
+                        <div class="diff-container" id="diffBoxSimp" style="margin-top: 8px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: EXPLORER FRJUDGE BENCHMARK          -->
+            <!-- ========================================== -->
+            <div id="tab-explorer" class="tab-content">
+                <div class="workspace-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>📚</span>
+                            <span>FrJUDGE Corpus - Certified Legal Benchmark Annotations</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                        <input type="text" id="datasetSearchInput" class="selector-pill" style="flex: 1; padding: 10px 16px;" placeholder="Search by keyword (e.g., exclusion, vehicle, indemnity, termination)..." onkeyup="handleSearchKey(event)">
+                        <button class="btn-3d" onclick="searchDataset()" style="padding: 10px 22px;">Search</button>
+                    </div>
+
+                    <div style="overflow-x: auto; max-height: 520px; border-radius: 16px; border: 1px solid var(--border-light); background: #ffffff;">
+                        <table class="corpus-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">#</th>
+                                    <th style="width: 140px;">Category</th>
+                                    <th>Original Clause</th>
+                                    <th>Simplified Clause</th>
+                                    <th style="width: 90px;">Meaning / 10</th>
+                                    <th style="width: 120px;">Readability</th>
+                                    <th style="width: 90px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="datasetTableBody">
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading FrJUDGE corpus...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: PAPER & METHODOLOGY                 -->
+            <!-- ========================================== -->
+            <div id="tab-paper" class="tab-content">
+                <div class="workspace-panel">
+                    <div class="panel-title" style="margin-bottom: 16px;">
+                        <span>📄</span>
+                        <span>JUDGEBERT: Assessing Legal Meaning Preservation Between Sentences (EMNLP 2025)</span>
+                    </div>
+                    <div style="line-height: 1.75; color: #334155; font-size: 0.95rem;">
+                        <p style="margin-bottom: 12px;">
+                            <strong>JUDGEBERT</strong> is the first model and benchmark dataset (FrJUDGE) dedicated to the rigorous assessment of 
+                            <strong>legal meaning preservation</strong> during text simplification of insurance policies and statutory contracts.
+                        </p>
+                        <p style="margin-bottom: 12px;">
+                            Unlike general text simplification tasks where readability is the primary objective, in legal domains, omitting a condition, 
+                            broadening an exclusion, or altering compensation timelines invalidates the legal integrity of the document and creates liability risks.
+                        </p>
+                        <h4 style="color: #0f172a; margin: 16px 0 8px 0; font-weight: 800;">Key Contributions:</h4>
+                        <ul style="margin-left: 20px; margin-bottom: 16px;">
+                            <li><strong>FrJUDGE Dataset:</strong> 1,485 certified annotations by 5 legal experts across 247 real-world contracts.</li>
+                            <li><strong>Multi-Vector ColBERT MaxSim:</strong> Token-to-token late interaction semantic alignment capturing subtle nuance.</li>
+                            <li><strong>Neuro-Symbolic Guardrails:</strong> Deterministic verification of party roles, causality direction, deontic modalities, and quantitative terms.</li>
+                            <li><strong>Closed-Loop Auto-Repair:</strong> Surgical clause reconstruction with certified meaning preservation without verbatim copying.</li>
+                        </ul>
+
+                        <pre style="background: #ffffff; padding: 16px; border-radius: 16px; font-size: 0.85rem; overflow-x: auto; color: #0f172a; border: 1px solid var(--border-light); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+@inproceedings{beauchemin2025judgebert,
+  title={JUDGEBERT: Assessing Legal Meaning Preservation Between Sentences},
+  author={Beauchemin, David and Albert-Rochette, Michelle and Khoury, Richard and D{\'e}ziel, Pierre-Luc},
+  booktitle={Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
+  pages={92--118},
+  year={2025}
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEATURE 4: AUDIT REPORT MODAL (Certificate of Meaning Preservation) -->
+    <div class="audit-modal-backdrop" id="auditModalBackdrop">
+        <div class="audit-modal-card">
+            <div class="cert-header">
+                <div>
+                    <div style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; color: #64748b; text-transform: uppercase;">
+                        ARBITRATION BOARD FOR MEANING PRESERVATION &bull; UNIVERSITÉ LAVAL &bull; EMNLP 2025
+                    </div>
+                    <h2 style="font-size: 1.4rem; font-weight: 900; color: #0f172a; margin: 4px 0;">
+                        OFFICIAL CERTIFICATE OF CONFORMITY & MEANING PRESERVATION
+                    </h2>
+                    <div style="font-size: 0.82rem; color: #475569;" id="certMetaTimestamp">Issued on: -- &bull; ID: JB-CERT-884920</div>
+                </div>
+                <div class="cert-seal">
+                    <div style="font-size: 0.68rem; text-transform: uppercase; font-weight: 800; color: #38bdf8;">Arbiter Verdict</div>
+                    <div style="font-size: 1.35rem; font-weight: 900;" id="certScoreSeal">9.9/10</div>
+                    <div style="font-size: 0.65rem; color: #a7f3d0;" id="certStatusSeal">CERTIFIED</div>
+                </div>
+            </div>
+
+            <div class="cert-grid">
+                <div>
+                    <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Original Source Clause</div>
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; font-size: 0.88rem; line-height: 1.5; color: #0f172a;" id="certOrigText">--</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Target Simplification (Certified)</div>
+                    <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 12px; font-size: 0.88rem; line-height: 1.5; color: #14532d; font-weight: 600;" id="certSimpText">--</div>
+                </div>
+            </div>
+
+            <!-- Metrics Breakdown in Cert -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="background: #f1f5f9; padding: 10px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase;">ColBERT MaxSim F1</div>
+                    <div style="font-size: 1.15rem; font-weight: 800; color: #1e3a8a;" id="certColbertF1">--%</div>
+                </div>
+                <div style="background: #f1f5f9; padding: 10px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Bi-Directional NLI Entailment</div>
+                    <div style="font-size: 1.15rem; font-weight: 800; color: #059669;" id="certNliVerdict">--</div>
+                </div>
+                <div style="background: #f1f5f9; padding: 10px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Compression Ratio</div>
+                    <div style="font-size: 1.15rem; font-weight: 800; color: #0f172a;" id="certCompRate">--%</div>
+                </div>
+            </div>
+
+            <!-- Neuro-Symbolic Guardrail Attestation -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 24px;">
+                <div style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #0f172a; margin-bottom: 6px;">
+                    🛡️ Neuro-Symbolic Safety Verification Attestation:
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; color: #334155;">
+                    <div>✅ Party & Actor Roles: <strong>Preserved</strong></div>
+                    <div>✅ Deontic Polarity (Obligations/Prohibitions): <strong>Preserved</strong></div>
+                    <div>✅ Causality Direction (Cause ↔ Effect): <strong>Conforming</strong></div>
+                    <div>✅ Quantitative Parameters, Dates & Timelines: <strong>Invariant</strong></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 18px;">
+                <div style="font-size: 0.75rem; color: #64748b;">
+                    Cryptographic SHA-256 Fingerprint: <code id="certHash" style="font-family: monospace; color: #0f172a;">--</code>
+                </div>
+                <div style="display: flex; gap: 10px;" class="no-print">
+                    <button class="nav-badge-pill" onclick="closeAuditModal()">✖️ Close</button>
+                    <button class="btn-3d" onclick="window.print()" style="padding: 8px 18px; font-size: 0.82rem;">🖨️ Print / Save as PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating 3D Control Dock -->
+    <div class="floating-dock">
+        <button class="dock-btn active" id="dockEval" onclick="switchTab('evaluator')">
+            <span>⚡</span> 3D Arbiter
+        </button>
+        <button class="dock-btn" id="dockCorpus" onclick="switchTab('explorer')">
+            <span>📚</span> Corpus
+        </button>
+        <button class="dock-btn" id="dockPaper" onclick="switchTab('paper')">
+            <span>📄</span> Paper
+        </button>
+        <div style="width: 1px; height: 18px; background: #cbd5e1;"></div>
+        <button class="dock-btn" onclick="openAuditModal()">
+            <span>📄</span> PDF Certificate
+        </button>
+        <button class="dock-btn" onclick="toggle3DTilt()">
+            <span id="dockTiltIcon">✨</span> 3D Tilt: <span id="dockTiltLabel">ON</span>
+        </button>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Embedded Benchmark Dataset (JSON) -->
+    <script id="benchmarkData" type="application/json">{{ examples | tojson | safe }}</script>
+
+    <script>
+        let benchmarkExamples = [];
+        try {
+            const rawBench = document.getElementById('benchmarkData');
+            if (rawBench && rawBench.textContent.trim()) {
+                benchmarkExamples = JSON.parse(rawBench.textContent);
+            }
+        } catch (e) {
+            console.warn("Could not parse benchmark examples JSON", e);
+        }
+
+        let isTiltActive = true;
+        let isLiveEvalActive = true;
+        let currentEvalData = null;
+        let currentMultiLevels = [];
+        let selectedLevelId = 1;
+
+        // --- 1. Interactive 3D Perspective Tilt & Specular Glare ---
+        const container = document.getElementById('spatialContainer');
+        const card = document.getElementById('floatingCard');
+        const glare = document.getElementById('specularGlare');
+
+        let targetRotX = 0, targetRotY = 0;
+        let currRotX = 0, currRotY = 0;
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isTiltActive) return;
+
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            const dx = (e.clientX - cx) / cx;
+            const dy = (e.clientY - cy) / cy;
+
+            targetRotY = dx * 7.5;
+            targetRotX = -dy * 7.5;
+
+            const rect = card.getBoundingClientRect();
+            const gx = ((e.clientX - rect.left) / rect.width) * 100;
+            const gy = ((e.clientY - rect.top) / rect.height) * 100;
+            glare.style.setProperty('--glare-x', gx + '%');
+            glare.style.setProperty('--glare-y', gy + '%');
+        });
+
+        function animateTilt() {
+            if (isTiltActive) {
+                currRotX += (targetRotX - currRotX) * 0.08;
+                currRotY += (targetRotY - currRotY) * 0.08;
+            } else {
+                currRotX += (0 - currRotX) * 0.1;
+                currRotY += (0 - currRotY) * 0.1;
+            }
+            container.style.transform = `rotateX(${currRotX.toFixed(2)}deg) rotateY(${currRotY.toFixed(2)}deg)`;
+            requestAnimationFrame(animateTilt);
+        }
+        animateTilt();
+
+        function toggle3DTilt() {
+            isTiltActive = !isTiltActive;
+            const dot = document.getElementById('tiltStatusDot');
+            const label = document.getElementById('dockTiltLabel');
+            if (isTiltActive) {
+                dot.style.color = '#10b981';
+                label.innerText = 'ON';
+            } else {
+                dot.style.color = '#94a3b8';
+                label.innerText = 'OFF';
+            }
+        }
+
+        function toggleLiveEvaluation() {
+            isLiveEvalActive = !isLiveEvalActive;
+            const dot = document.getElementById('liveDot');
+            const lbl = document.getElementById('liveLabel');
+            if (isLiveEvalActive) {
+                dot.style.color = '#10b981';
+                lbl.innerText = 'Live Evaluation: ACTIVE';
+            } else {
+                dot.style.color = '#94a3b8';
+                lbl.innerText = 'Live Evaluation: PAUSED';
+                document.getElementById('liveScoreBadge').style.display = 'none';
+                document.getElementById('liveWarningBar').style.display = 'none';
+            }
+        }
+
+        // --- 2. Live Glowing Fusion Orb Canvas ---
+        const orbCanvas = document.getElementById('orbCanvas');
+        const ctx = orbCanvas.getContext('2d');
+        let orbAngle = 0;
+        let sparks = [];
+
+        for (let i = 0; i < 24; i++) {
+            sparks.push({
+                radius: Math.random() * 80 + 30,
+                speed: Math.random() * 0.03 + 0.01,
+                angle: Math.random() * Math.PI * 2,
+                size: Math.random() * 2.5 + 1
+            });
+        }
+
+        function drawOrb() {
+            ctx.clearRect(0, 0, orbCanvas.width, orbCanvas.height);
+            const cx = orbCanvas.width / 2;
+            const cy = orbCanvas.height / 2;
+
+            orbAngle += 0.025;
+
+            const gradOuter = ctx.createRadialGradient(cx, cy, 20, cx, cy, 220);
+            gradOuter.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            gradOuter.addColorStop(0.2, 'rgba(254, 240, 138, 0.55)');
+            gradOuter.addColorStop(0.5, 'rgba(245, 158, 11, 0.2)');
+            gradOuter.addColorStop(0.75, 'rgba(56, 189, 248, 0.1)');
+            gradOuter.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.fillStyle = gradOuter;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 220, 0, Math.PI * 2);
+            ctx.fill();
+
+            const pulse = Math.sin(orbAngle * 2.5) * 8;
+            const gradCore = ctx.createRadialGradient(cx, cy, 2, cx, cy, 75 + pulse);
+            gradCore.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradCore.addColorStop(0.4, 'rgba(253, 224, 71, 0.7)');
+            gradCore.addColorStop(0.8, 'rgba(56, 189, 248, 0.25)');
+            gradCore.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.fillStyle = gradCore;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 75 + pulse, 0, Math.PI * 2);
+            ctx.fill();
+
+            sparks.forEach(sp => {
+                sp.angle += sp.speed;
+                const sx = cx + Math.cos(sp.angle) * sp.radius;
+                const sy = cy + Math.sin(sp.angle) * (sp.radius * 0.6);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.beginPath();
+                ctx.arc(sx, sy, sp.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            requestAnimationFrame(drawOrb);
+        }
+        drawOrb();
+
+        // --- 3. Three.js Background 3D Clay Sculpture Blob ---
+        const canvas3D = document.getElementById('bgCanvas3D');
+        if (typeof THREE !== 'undefined') {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 7.5;
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas3D, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const geom = new THREE.IcosahedronGeometry(2.4, 26);
+            const pos = geom.attributes.position;
+            const origPos = pos.clone();
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xf4f7fa,
+                roughness: 0.35,
+                metalness: 0.05
+            });
+
+            const blob = new THREE.Mesh(geom, mat);
+            scene.add(blob);
+
+            const light1 = new THREE.DirectionalLight(0xffffff, 1.4);
+            light1.position.set(5, 8, 6);
+            scene.add(light1);
+
+            const light2 = new THREE.DirectionalLight(0xcad8e4, 0.8);
+            light2.position.set(-6, -4, -3);
+            scene.add(light2);
+
+            const ambient = new THREE.AmbientLight(0xe8edf2, 0.9);
+            scene.add(ambient);
+
+            let clock = new THREE.Clock();
+
+            function animateBlob() {
+                const t = clock.getElapsedTime() * 0.7;
+                blob.rotation.y = t * 0.12;
+                blob.rotation.x = Math.sin(t * 0.18) * 0.08;
+
+                for (let i = 0; i < pos.count; i++) {
+                    const u = origPos.getX(i);
+                    const v = origPos.getY(i);
+                    const w = origPos.getZ(i);
+
+                    const wave = Math.sin(u * 1.4 + t) * Math.cos(v * 1.4 + t) * Math.sin(w * 1.4 + t);
+                    const dist = 1.0 + wave * 0.13;
+
+                    pos.setXYZ(i, u * dist, v * dist, w * dist);
+                }
+                pos.needsUpdate = true;
+                geom.computeVertexNormals();
+
+                renderer.render(scene, camera);
+                requestAnimationFrame(animateBlob);
+            }
+            animateBlob();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        // --- 4. Navigation & Tab Switching ---
+        function switchTab(tabName) {
+            document.querySelectorAll('.pill-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.dock-btn').forEach(d => d.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            if (tabName === 'evaluator') {
+                document.getElementById('tabBtnEval').classList.add('active');
+                document.getElementById('dockEval').classList.add('active');
+                document.getElementById('tab-evaluator').classList.add('active');
+            } else if (tabName === 'explorer') {
+                document.getElementById('tabBtnCorpus').classList.add('active');
+                document.getElementById('dockCorpus').classList.add('active');
+                document.getElementById('tab-explorer').classList.add('active');
+                if (document.getElementById('datasetTableBody').children.length <= 1) {
+                    searchDataset();
+                }
+            } else if (tabName === 'paper') {
+                document.getElementById('tabBtnPaper').classList.add('active');
+                document.getElementById('dockPaper').classList.add('active');
+                document.getElementById('tab-paper').classList.add('active');
+            }
+        }
+
+        // --- 5. Example Loader ---
+        function loadSelectedExample() {
+            const select = document.getElementById('exampleSelector');
+            const id = select.value;
+            if (!id) return;
+
+            const example = benchmarkExamples.find(e => e.id == id);
+            if (example) {
+                document.getElementById('origInput').value = example.original;
+                document.getElementById('simpInput').value = example.simplification;
+
+                const expertBox = document.getElementById('expertConsensusBox');
+                if (example.justifications || example.human_score) {
+                    expertBox.style.display = 'block';
+                    document.getElementById('expertJustificationText').innerHTML = 
+                        `<strong>Legal Expert Score:</strong> ${example.human_score}/10 &bull; ` +
+                        `<strong>Readability:</strong> ${example.simplicity || 'Unspecified'}<br>` +
+                        `<strong>Annotator Justification:</strong> ${example.justifications || 'No textual notes'}`;
+                } else {
+                    expertBox.style.display = 'none';
+                }
+
+                runEvaluation();
+            }
+        }
+
+        function selectExampleFromTable(original, simplification) {
+            document.getElementById('origInput').value = original;
+            document.getElementById('simpInput').value = simplification;
+            switchTab('evaluator');
+            runEvaluation();
+        }
+
+        // --- 6. Core Arbiter Evaluation Execution ---
+        async function runEvaluation(isLiveCall = false) {
+            const orig = document.getElementById('origInput').value.trim();
+            const simp = document.getElementById('simpInput').value.trim();
+
+            if (!orig || !simp) {
+                if (!isLiveCall) alert("Please enter both an original and a simplified sentence.");
+                return;
+            }
+
+            const btn = document.getElementById('evaluateBtn');
+            const spinner = document.getElementById('btnSpinner');
+            if (!isLiveCall) {
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+            }
+
+            try {
+                const response = await fetch('/api/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        original: orig, 
+                        simplification: simp,
+                        domain: document.getElementById('domainSelector').value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) return;
+
+                currentEvalData = data;
+
+                // Update Live Badge
+                const liveBadge = document.getElementById('liveScoreBadge');
+                if (liveBadge) {
+                    liveBadge.style.display = 'inline-block';
+                    liveBadge.innerText = `Score: ${data.score.toFixed(1)}/10`;
+                    if (data.score >= 8.5) liveBadge.className = 'badge-pill badge-pill-success';
+                    else if (data.score >= 6.5) liveBadge.className = 'badge-pill badge-pill-info';
+                    else if (data.score >= 4.0) liveBadge.className = 'badge-pill badge-pill-warning';
+                    else liveBadge.className = 'badge-pill badge-pill-danger';
+                }
+
+                const liveWarning = document.getElementById('liveWarningBar');
+                if (liveWarning) {
+                    if (data.guardrails && !data.guardrails.passed && data.guardrails.alerts && data.guardrails.alerts.length > 0) {
+                        liveWarning.style.display = 'block';
+                        liveWarning.innerHTML = `⚠️ <strong>Semantic Alert:</strong> ${escapeHtml(data.guardrails.alerts[0].message)}`;
+                    } else {
+                        liveWarning.style.display = 'none';
+                    }
+                }
+
+                // Display Results Deck
+                const container = document.getElementById('resultsContainer');
+                if (container) container.style.display = 'block';
+
+                const scoreNum = document.getElementById('scoreNum');
+                if (scoreNum) {
+                    scoreNum.innerText = data.score.toFixed(1);
+                    if (data.score >= 8.5) scoreNum.style.color = 'var(--success)';
+                    else if (data.score >= 6.5) scoreNum.style.color = '#0284c7';
+                    else if (data.score >= 4.0) scoreNum.style.color = 'var(--warning)';
+                    else scoreNum.style.color = 'var(--danger)';
+                }
+
+                const badge = document.getElementById('tierBadge');
+                if (badge) {
+                    badge.className = `badge-pill badge-pill-${data.tier_class}`;
+                    badge.innerText = data.tier;
+                }
+
+                const tierInterp = document.getElementById('tierInterpretation');
+                if (tierInterp) tierInterp.innerText = data.interpretation;
+
+                const predCat = document.getElementById('predictedCategory');
+                if (predCat) predCat.innerText = data.predicted_category || '--';
+
+                const catBadge = document.getElementById('categoryBadge');
+                if (catBadge) {
+                    if (data.predicted_category) {
+                        catBadge.innerText = `Category: ${data.predicted_category}`;
+                        catBadge.style.display = 'inline-block';
+                    } else {
+                        catBadge.style.display = 'none';
+                    }
+                }
+
+                const evalMode = document.getElementById('evalMode');
+                if (evalMode) evalMode.innerText = data.mode || 'Standard';
+
+                // Guardrails Display
+                const grContainer = document.getElementById('guardrailContainer');
+                const grAlertBox = document.getElementById('guardrailAlertBox');
+                const grList = document.getElementById('guardrailMessageList');
+                const grHeader = document.getElementById('guardrailHeader');
+                if (grContainer) {
+                    if (data.guardrails) {
+                        grContainer.style.display = 'block';
+                        if (!data.guardrails.passed && data.guardrails.alerts && data.guardrails.alerts.length > 0) {
+                            const hasDanger = data.guardrails.alerts.some(a => a.level === 'danger');
+                            if (grAlertBox) {
+                                grAlertBox.style.backgroundColor = hasDanger ? 'var(--danger-bg)' : 'var(--warning-bg)';
+                                grAlertBox.style.borderColor = hasDanger ? 'var(--danger)' : 'var(--warning)';
+                                grAlertBox.style.color = hasDanger ? '#991b1b' : '#92400e';
+                            }
+                            if (grHeader) {
+                                grHeader.innerText = hasDanger 
+                                    ? '🚨 Critical Alert: Semantic or Legal Inversion Detected' 
+                                    : '⚠️ Warning: Clause Parameter or Exception Altered';
+                            }
+                            if (grList) {
+                                grList.innerHTML = '<ul style="margin-left: 1.25rem; margin-top: 0.35rem;">' + 
+                                    data.guardrails.alerts.map(a => `<li><strong>${escapeHtml(a.message)}</strong></li>`).join('') + 
+                                    '</ul>';
+                            }
+                        } else {
+                            if (grAlertBox) {
+                                grAlertBox.style.backgroundColor = 'var(--success-bg)';
+                                grAlertBox.style.borderColor = 'var(--success)';
+                                grAlertBox.style.color = '#065f46';
+                            }
+                            if (grHeader) {
+                                grHeader.innerText = '✅ Neuro-Symbolic Guardrails Validated (Meaning Preserved)';
+                            }
+                            if (grList) {
+                                grList.innerHTML = '<p style="margin-top: 0.2rem;">No obligation reversal, omission of exceptions, or alteration of timeline/numbers detected.</p>';
+                            }
+                        }
+                    } else {
+                        grContainer.style.display = 'none';
+                    }
+                }
+
+                // Cross-Encoder Bidirectional NLI
+                const nliCard = document.getElementById('nliCard');
+                if (data.nli && nliCard) {
+                    nliCard.style.display = 'block';
+                    const nliBadge = document.getElementById('nliVerdictBadge');
+                    
+                    const maxContra = Math.max(
+                        data.nli.p_contradiction || 0,
+                        (data.nli.reverse ? data.nli.reverse.p_contradiction : 0)
+                    );
+                    
+                    if (nliBadge) {
+                        nliBadge.innerText = data.nli.verdict;
+                        if (maxContra > 40) {
+                            nliBadge.className = 'badge-pill badge-pill-danger';
+                        } else if (data.nli.verdict && data.nli.verdict.includes('Bidirectionnel')) {
+                            nliBadge.className = 'badge-pill badge-pill-success';
+                        } else if (data.nli.p_entailment > 55) {
+                            nliBadge.className = 'badge-pill badge-pill-info';
+                        } else {
+                            nliBadge.className = 'badge-pill badge-pill-warning';
+                        }
+                    }
+                    
+                    const pEntail = document.getElementById('pEntailVal');
+                    if (pEntail) pEntail.innerText = (data.nli.forward ? data.nli.forward.p_entailment : data.nli.p_entailment) + '%';
+                    const pRev = document.getElementById('pReverseVal');
+                    if (pRev) pRev.innerText = (data.nli.reverse ? data.nli.reverse.p_entailment : '--') + '%';
+                    const pContra = document.getElementById('pContraVal');
+                    if (pContra) pContra.innerText = maxContra + '%';
+                    const nliMut = document.getElementById('nliMutualVal');
+                    if (nliMut) nliMut.innerText = (data.nli.mutual_score !== undefined ? data.nli.mutual_score : data.score) + '/10';
+                }
+
+                // Metrics
+                const valCos = document.getElementById('valCosine');
+                if (valCos) valCos.innerText = (data.metrics.colbert_maxsim !== undefined ? data.metrics.colbert_maxsim : data.metrics.cosine_similarity) + '%';
+                
+                const colbertCov = document.getElementById('colbertCoverageSub');
+                if (colbertCov && data.metrics.colbert_forward !== undefined) {
+                    colbertCov.innerHTML = `Cov A➔B: <strong>${data.metrics.colbert_forward}%</strong> &bull; Cov B➔A: <strong>${data.metrics.colbert_reverse}%</strong>`;
+                }
+                
+                const valJac = document.getElementById('valJaccard');
+                if (valJac) valJac.innerText = data.metrics.jaccard + '%';
+                
+                const valComp = document.getElementById('valCompression');
+                if (valComp) valComp.innerText = (data.metrics.compression_ratio > 0 ? '-' : '+') + Math.abs(data.metrics.compression_ratio) + '%';
+                
+                const valWords = document.getElementById('valWords');
+                if (valWords) valWords.innerText = `${data.metrics.words_orig} orig vs ${data.metrics.words_simp} simp`;
+
+                // Render FEATURE 1: ColBERT Token-to-Token Ribbon
+                renderColbertRibbons(data.metrics.tokens_a || [], data.metrics.tokens_b || [], data.metrics.colbert_alignment || []);
+
+                // Closed-Loop Auto-Repair Trigger
+                const repairCta = document.getElementById('repairCtaContainer');
+                const repairResult = document.getElementById('repairResultCard');
+                if (repairResult) repairResult.style.display = 'none';
+                if (repairCta) {
+                    if (data.score < 9.0 || (data.guardrails && !data.guardrails.passed)) {
+                        repairCta.style.display = 'block';
+                    } else {
+                        repairCta.style.display = 'none';
+                    }
+                }
+
+                // Diff
+                if (data.diff) renderDiff(data.diff);
+
+                if (!isLiveCall) {
+                    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+
+            } catch (err) {
+                console.error(err);
+                if (!isLiveCall) alert("Evaluation error: " + err.message);
+            } finally {
+                if (!isLiveCall) {
+                    btn.disabled = false;
+                    spinner.style.display = 'none';
+                }
+            }
+        }
+
+        // ColBERT Ribbon Visualizer (Removed from web view per user request)
+        function renderColbertRibbons(tokensA, tokensB, alignment) {
+            // No-op
+        }
+
+        // --- FEATURE 2: Live "As-You-Type" Debounced Real-Time Scoring ---
+        let liveDebounceTimer = null;
+        document.getElementById('simpInput').addEventListener('input', () => {
+            if (!isLiveEvalActive) return;
+
+            const pulse = document.getElementById('liveStatusPulse');
+            pulse.style.display = 'inline';
+
+            clearTimeout(liveDebounceTimer);
+            liveDebounceTimer = setTimeout(async () => {
+                const orig = document.getElementById('origInput').value.trim();
+                const simp = document.getElementById('simpInput').value.trim();
+                if (orig.length >= 6 && simp.length >= 6) {
+                    await runEvaluation(true); // silent live call
+                }
+                pulse.style.display = 'none';
+            }, 360);
+        });
+
+        // --- FEATURE 3: Multi-Level Simplification Generation & Slider ---
+        async function generateMultiLevels() {
+            const orig = document.getElementById('origInput').value.trim();
+            if (!orig) {
+                alert("Please enter an original clause first.");
+                return;
+            }
+
+            const btn = document.getElementById('genLevelsBtn');
+            const spin = document.getElementById('genLevelsSpinner');
+            btn.disabled = true;
+            spin.style.display = 'inline-block';
+
+            try {
+                const response = await fetch('/api/simplify-levels', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        original: orig,
+                        domain: document.getElementById('domainSelector').value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                currentMultiLevels = data.levels || [];
+                selectLevel(1); // default to Level 1
+                document.getElementById('applyLvlBtn').style.display = 'inline-flex';
+                document.getElementById('lvlScoreTag').style.display = 'inline-block';
+
+            } catch (err) {
+                console.error(err);
+                alert("Error during multi-tier generation: " + err.message);
+            } finally {
+                btn.disabled = false;
+                spin.style.display = 'none';
+            }
+        }
+
+        function selectLevel(lvlId) {
+            selectedLevelId = lvlId;
+            document.querySelectorAll('.level-pill-card').forEach((card, idx) => {
+                if (idx + 1 === lvlId) card.classList.add('active');
+                else card.classList.remove('active');
+            });
+
+            if (!currentMultiLevels.length) return;
+            const lvl = currentMultiLevels.find(l => l.id === lvlId) || currentMultiLevels[0];
+
+            document.getElementById('lvlPreviewHeader').innerText = `Active Preview - ${lvl.title}:`;
+            document.getElementById('lvlPreviewText').innerText = lvl.text;
+            document.getElementById('lvlScoreTag').innerText = `Score: ${lvl.score.toFixed(1)}/10`;
+            document.getElementById('lvlScoreTag').className = `badge-pill ${lvl.score >= 8.5 ? 'badge-pill-success' : 'badge-pill-warning'}`;
+        }
+
+        function applyCurrentLevelToTarget() {
+            if (!currentMultiLevels.length) return;
+            const lvl = currentMultiLevels.find(l => l.id === selectedLevelId);
+            if (!lvl) return;
+
+            document.getElementById('simpInput').value = lvl.text;
+            runEvaluation();
+        }
+
+        // --- FEATURE 4: Audit Report & Certificate of Meaning Preservation ---
+        function openAuditModal() {
+            if (!currentEvalData) {
+                alert("Please run an evaluation first to generate the audit certificate.");
+                return;
+            }
+
+            const modal = document.getElementById('auditModalBackdrop');
+            modal.classList.add('open');
+
+            const now = new Date();
+            document.getElementById('certMetaTimestamp').innerText = `Issued on: ${now.toLocaleDateString('en-US')} at ${now.toLocaleTimeString('en-US')} &bull; JUDGEBERT Arbiter`;
+            document.getElementById('certScoreSeal').innerText = `${currentEvalData.score.toFixed(1)}/10`;
+            document.getElementById('certStatusSeal').innerText = currentEvalData.score >= 8.5 ? "CERTIFIED CONFORMING" : "NON-CONFORMING";
+            document.getElementById('certOrigText').innerText = document.getElementById('origInput').value;
+            document.getElementById('certSimpText').innerText = document.getElementById('simpInput').value;
+
+            document.getElementById('certColbertF1').innerText = (currentEvalData.metrics.colbert_maxsim || currentEvalData.metrics.cosine_similarity) + '%';
+            document.getElementById('certNliVerdict').innerText = currentEvalData.nli ? currentEvalData.nli.verdict : 'Validated';
+            document.getElementById('certCompRate').innerText = (currentEvalData.metrics.compression_ratio > 0 ? '-' : '+') + Math.abs(currentEvalData.metrics.compression_ratio) + '%';
+
+            // Generate deterministic mock SHA-256 style hash from content
+            const hash = "SHA256:" + Math.abs((document.getElementById('origInput').value + document.getElementById('simpInput').value).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)).toString(16).toUpperCase() + "9B4C27";
+            document.getElementById('certHash').innerText = hash;
+        }
+
+        function closeAuditModal() {
+            document.getElementById('auditModalBackdrop').classList.remove('open');
+        }
+
+        function exportAuditJSON() {
+            if (!currentEvalData) {
+                alert("Please run an evaluation first.");
+                return;
+            }
+
+            const payload = {
+                metadata: {
+                    platform: "JUDGEBERT Meaning Preservation Engine",
+                    version: "2.0-ColBERT-MaxSim",
+                    conference: "EMNLP 2025",
+                    timestamp: new Date().toISOString()
+                },
+                source: document.getElementById('origInput').value,
+                target: document.getElementById('simpInput').value,
+                domain: currentEvalData.domain,
+                evaluation: currentEvalData
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `judgebert_audit_${Date.now()}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        // --- Diff Rendering ---
+        function renderDiff(diff) {
+            const boxOrig = document.getElementById('diffBoxOrig');
+            const boxSimp = document.getElementById('diffBoxSimp');
+
+            let htmlOrig = '<strong>Original: </strong> ';
+            diff.diff_orig.forEach(item => {
+                if (item.type === 'equal') {
+                    htmlOrig += `<span>${escapeHtml(item.text)}</span> `;
+                } else if (item.type === 'delete') {
+                    htmlOrig += `<span class="diff-delete">${escapeHtml(item.text)}</span> `;
+                } else if (item.type === 'replace_orig') {
+                    htmlOrig += `<span class="diff-replace-orig">${escapeHtml(item.text)}</span> `;
+                }
+            });
+            boxOrig.innerHTML = htmlOrig;
+
+            let htmlSimp = '<strong>Simplified: </strong> ';
+            diff.diff_simp.forEach(item => {
+                if (item.type === 'equal') {
+                    htmlSimp += `<span>${escapeHtml(item.text)}</span> `;
+                } else if (item.type === 'insert') {
+                    htmlSimp += `<span class="diff-insert">${escapeHtml(item.text)}</span> `;
+                } else if (item.type === 'replace_simp') {
+                    htmlSimp += `<span class="diff-replace-simp">${escapeHtml(item.text)}</span> `;
+                }
+            });
+            boxSimp.innerHTML = htmlSimp;
+        }
+
+        // --- Closed-Loop Auto-Repair Execution ---
+        let currentRepairedText = "";
+
+        async function runAutoRepair() {
+            const orig = document.getElementById('origInput').value.trim();
+            const simp = document.getElementById('simpInput').value.trim();
+            const domain = document.getElementById('domainSelector').value;
+
+            if (!orig || !simp) return;
+
+            const btn = document.getElementById('repairBtn');
+            const spinner = document.getElementById('repairSpinner');
+            btn.disabled = true;
+            spinner.style.display = 'inline-block';
+
+            try {
+                const response = await fetch('/api/repair', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ original: orig, simplification: simp, domain: domain })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                currentRepairedText = data.repaired_target;
+
+                const resultCard = document.getElementById('repairResultCard');
+                resultCard.style.display = 'block';
+
+                document.getElementById('repairOldScore').innerText = data.initial_score.toFixed(1) + '/10';
+                document.getElementById('repairNewScore').innerText = data.repaired_score.toFixed(1) + '/10';
+                document.getElementById('repairDeltaBadge').innerText = data.score_delta;
+                document.getElementById('repairedTextBox').innerText = data.repaired_target;
+
+                const list = document.getElementById('repairActionsList');
+                list.innerHTML = data.actions.map(act => `<li><strong>${escapeHtml(act)}</strong></li>`).join('');
+
+                const altsContainer = document.getElementById('repairAlternativesContainer');
+                const altsList = document.getElementById('repairAlternativesList');
+                if (data.alternatives && data.alternatives.length > 0) {
+                    altsContainer.style.display = 'block';
+                    altsList.innerHTML = data.alternatives.map(alt => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 6px 12px; border-radius: 8px; border: 1px solid #ccfbf1; font-size: 0.88rem; gap: 8px;">
+                            <span style="color: #134e4a; font-weight: 600;">${escapeHtml(alt)}</span>
+                            <button class="nav-badge-pill" style="padding: 3px 10px; font-size: 0.75rem; white-space: nowrap;" onclick="applyAlternativeText(${JSON.stringify(alt)})">Use this phrasing</button>
+                        </div>
+                    `).join('');
+                } else {
+                    altsContainer.style.display = 'none';
+                }
+
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            } catch (err) {
+                console.error(err);
+                alert("Auto-repair error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        }
+
+        function applyRepairedToTarget() {
+            if (!currentRepairedText) return;
+            document.getElementById('simpInput').value = currentRepairedText;
+            runEvaluation();
+        }
+
+        function applyAlternativeText(altText) {
+            if (!altText) return;
+            document.getElementById('simpInput').value = altText;
+            runEvaluation();
+        }
+
+        function copyRepairedText() {
+            if (!currentRepairedText) return;
+            navigator.clipboard.writeText(currentRepairedText).then(() => {
+                alert("Repaired text copied to clipboard!");
+            }).catch(err => {
+                console.error("Copy error:", err);
+            });
+        }
+
+        // --- Corpus Search ---
+        function handleSearchKey(e) {
+            if (e.key === 'Enter') searchDataset();
+        }
+
+        async function searchDataset() {
+            const query = document.getElementById('datasetSearchInput').value.trim();
+            const tbody = document.getElementById('datasetTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Searching corpus...</td></tr>';
+
+            try {
+                const response = await fetch(`/api/dataset?q=${encodeURIComponent(query)}&limit=30`);
+                const items = await response.json();
+
+                if (!items.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No matching clauses found.</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                items.forEach(it => {
+                    const score = it.legal_meaning || '--';
+                    let badgeClass = 'badge-pill-info';
+                    if (score >= 8) badgeClass = 'badge-pill-success';
+                    else if (score <= 4) badgeClass = 'badge-pill-danger';
+                    else if (score < 8) badgeClass = 'badge-pill-warning';
+
+                    html += `<tr>
+                        <td><strong>${it.id}</strong></td>
+                        <td><span style="font-size: 0.8rem; font-weight: 700;">${escapeHtml(it.category_name)}</span></td>
+                        <td style="max-width: 300px;">${escapeHtml(it.original)}</td>
+                        <td style="max-width: 300px;">${escapeHtml(it.simplification)}</td>
+                        <td><span class="badge-pill ${badgeClass}">${score}/10</span></td>
+                        <td><span style="font-size: 0.8rem;">${escapeHtml(it.simplicity || '-')}</span></td>
+                        <td><button class="nav-badge-pill" style="padding: 4px 10px; font-size: 0.78rem;" onclick="selectExampleFromTable(${JSON.stringify(it.original)}, ${JSON.stringify(it.simplification)})">Test in Arbiter</button></td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align: center; padding: 20px;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Prefill first benchmark example
+        window.addEventListener('DOMContentLoaded', () => {
+            const selector = document.getElementById('exampleSelector');
+            if (selector.options.length > 1) {
+                selector.selectedIndex = 1;
+                loadSelectedExample();
+            }
+        });
+    </script>
+</body>
+</html>

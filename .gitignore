@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches, test outputs & logs
+.pytest_cache/
+.coverage
+htmlcov/
+scratch/
+*.log
+
+# Virtual Environments
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# IDE & Editor configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Archives & Temporary files
+proprietary_dependencies/
+*.pem
+*.zip
+*.tar.gz
+
+# Large fine-tuned model weights (>100MB exceeds GitHub standard limit)
+# Note: Remove or comment the line below if using Git LFS to track *.safetensors
+demo_app/models/*/model.safetensors
+*.safetensors
