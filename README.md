@@ -28,6 +28,14 @@ python run_demo.py
 
 Then open your browser at **[http://localhost:5000](http://localhost:5000)**.
 
+> [!NOTE]
+> **Model Weights (`*.safetensors`):**  
+> By default, `.gitignore` excludes `*.safetensors` so the repository pushes smoothly without hitting GitHub's 100 MB single-file limit. Anyone who clones the repo can generate the fine-tuned weights in ~2 minutes with:
+> ```bash
+> python finetune_judgebert_contrastive.py
+> ```
+> If local fine-tuned weights are not generated, the engine will automatically rely on the base model fallback (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
+
 ### 3. Run Automated Regression Test Suite
 Verify all 17 end-to-end evaluation and closed-loop self-correction tests:
 
@@ -73,6 +81,7 @@ To train or fine-tune the multilingual contrastive bi-encoder (`judgebert-multil
 ```bash
 python finetune_judgebert_contrastive.py
 ```
+*This fine-tunes the contrastive objective and outputs the weights to `demo_app/models/judgebert-multilingual-v2/model.safetensors` in ~2 minutes.*
 
 To run offline multilingual evaluation across all metrics (Pearson $r$, Spearman $\rho$, MSE, MAE, Classification Accuracy & F1):
 
