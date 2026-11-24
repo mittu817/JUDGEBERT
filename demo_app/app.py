@@ -9,6 +9,7 @@ parent_dir = current_dir.parent
 sys.path.insert(0, str(parent_dir))
 
 from demo_app.model_engine import JudgeBertEngine, CATEGORIES
+from demo_app.config import get_gemini_api_key, is_gemini_enabled
 
 app = Flask(__name__, template_folder=str(current_dir / "templates"))
 
@@ -42,41 +43,29 @@ def repair():
     orig = data.get("original", "").strip()
     simp = data.get("simplification", "").strip()
     domain = data.get("domain", "auto").strip()
-    api_key = data.get("api_key", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
 
     if not orig or not simp:
         return jsonify({"error": "Please provide both the original clause and the simplified version."}), 400
 
-    result = engine.auto_repair(orig, simp, domain=domain, api_key=api_key)
+    # Read API key strictly from the backend environment (.env or OS environment)
+    backend_key = get_gemini_api_key()
+    result = engine.auto_repair(orig, simp, domain=domain, api_key=backend_key)
     return jsonify(result)
 
 
-@app.route("/api/test-gemini", methods=["POST"])
-def test_gemini():
-    data = request.get_json(force=True) or {}
-    api_key = data.get("api_key", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return jsonify({"valid": False, "error": "No API key provided. Please paste your Gemini API key."}), 400
-    
-    try:
-        from demo_app.gemini_generator import GeminiGenerator
-        test_cands = GeminiGenerator.generate_simplification_candidates(
-            orig="The tenant must pay rent on the first of each month.",
-            flawed_simp="The tenant pays rent.",
-            alerts=[],
-            lang="en",
-            api_key=api_key,
-            count=1
-        )
-        if test_cands:
-            return jsonify({
-                "valid": True,
-                "model": "Google Gemini (Pro/Flash)",
-                "sample": test_cands[0]
-            })
-        return jsonify({"valid": False, "error": "Gemini API rejected request or returned empty response. Check key permissions or quota."}), 400
-    except Exception as e:
-        return jsonify({"valid": False, "error": str(e)}), 500
+@app.route("/api/gemini-status", methods=["GET"])
+def gemini_status():
+    backend_key = get_gemini_api_key()
+    is_active = bool(backend_key)
+    masked_key = ""
+    if is_active:
+        masked_key = backend_key[:6] + "..." + backend_key[-4:] if len(backend_key) > 10 else "***"
+    return jsonify({
+        "configured": is_active,
+        "masked_key": masked_key,
+        "model": "gemini-2.0-flash / gemini-1.5-pro",
+        "description": "Google Gemini Pro Generative Plain-Language Author (Backend Configured)"
+    })
 
 
 @app.route("/api/simplify-levels", methods=["POST"])

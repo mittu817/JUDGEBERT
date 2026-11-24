@@ -944,9 +944,9 @@
                         <span id="tiltStatusDot" style="color: #10b981;">●</span>
                         <span>3D Spatial Tilt</span>
                     </div>
-                    <div class="nav-badge-pill" id="geminiApiKeyBtn" onclick="openGeminiModal()" style="cursor: pointer; background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%); border: 1px solid #c7d2fe;" title="Configure Gemini API Key for Generative Plain-Language Author">
-                        <span id="geminiStatusDot" style="color: #6366f1;">✨</span>
-                        <span id="geminiBtnLabel" style="font-weight: 700; color: #4338ca;">Gemini Pro AI</span>
+                    <div class="nav-badge-pill" id="geminiBackendStatusBadge" style="cursor: default; background: #f8fafc; border: 1px solid #e2e8f0;" title="Backend Gemini AI Generative Author Status">
+                        <span id="geminiStatusDot" style="color: #94a3b8;">●</span>
+                        <span id="geminiBtnLabel" style="font-weight: 700; color: #64748b;">Gemini Pro (Checking...)</span>
                     </div>
                 </div>
             </div>
@@ -1444,47 +1444,6 @@
                 <div style="display: flex; gap: 10px;" class="no-print">
                     <button class="nav-badge-pill" onclick="closeAuditModal()">✖️ Close</button>
                     <button class="btn-3d" onclick="window.print()" style="padding: 8px 18px; font-size: 0.82rem;">🖨️ Print / Save as PDF</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- GEMINI API SETTINGS MODAL -->
-    <div class="audit-modal-backdrop" id="geminiModalBackdrop" style="display: none; align-items: center; justify-content: center; z-index: 1000;">
-        <div class="audit-modal-card" style="max-width: 580px; padding: 28px; border-radius: 20px; box-shadow: 0 25px 60px -15px rgba(15,23,42,0.35); background: white;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.25rem;">✨</div>
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a;">Google Gemini Pro Settings</h3>
-                        <span style="font-size: 0.8rem; color: #64748b;">Generative Plain-Language Author for Auto-Repair</span>
-                    </div>
-                </div>
-                <button onclick="closeGeminiModal()" style="background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
-            </div>
-
-            <p style="font-size: 0.88rem; color: #475569; line-height: 1.5; margin-bottom: 18px;">
-                Connect your <strong>Google Gemini API Key</strong> (Gemini Pro / Flash). When active, JUDGEBERT uses Gemini to author fluid, human-grade plain-language legal reformulations from scratch, while JUDGEBERT’s mathematical models verify 100% factual and deontic fidelity.
-            </p>
-
-            <div style="margin-bottom: 18px;">
-                <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #334155; text-transform: uppercase; margin-bottom: 6px;">
-                    Gemini API Key
-                </label>
-                <div style="position: relative;">
-                    <input type="password" id="geminiKeyInput" placeholder="AIzaSy..." style="width: 100%; padding: 12px 42px 12px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; font-family: monospace; outline: none; box-sizing: border-box; transition: border-color 0.2s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#cbd5e1'">
-                    <button type="button" onclick="toggleKeyVisibility()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; font-size: 1rem;">👁️</button>
-                </div>
-                <div id="geminiKeyStatus" style="font-size: 0.82rem; margin-top: 8px; min-height: 20px;"></div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div>
-                    <button type="button" onclick="clearGeminiKey()" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Remove Key</button>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="button" onclick="testGeminiKey()" id="btnTestGemini" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer;">⚡ Test Connection</button>
-                    <button type="button" onclick="saveGeminiKey()" id="btnSaveGemini" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none; color: white; padding: 8px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(99,102,241,0.3);">Save Key</button>
                 </div>
             </div>
         </div>
@@ -2137,11 +2096,10 @@
             spinner.style.display = 'inline-block';
 
             try {
-                const apiKey = localStorage.getItem('gemini_api_key') || '';
                 const response = await fetch('/api/repair', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ original: orig, simplification: simp, domain: domain, api_key: apiKey })
+                    body: JSON.stringify({ original: orig, simplification: simp, domain: domain })
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -2270,106 +2228,45 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // --- Google Gemini Pro Settings Controller ---
-        function openGeminiModal() {
-            const backdrop = document.getElementById('geminiModalBackdrop');
-            if (backdrop) {
-                backdrop.style.display = 'flex';
-                const savedKey = localStorage.getItem('gemini_api_key') || '';
-                document.getElementById('geminiKeyInput').value = savedKey;
-                const statusEl = document.getElementById('geminiKeyStatus');
-                if (savedKey) {
-                    statusEl.innerHTML = '<span style="color: #059669; font-weight: 600;">✅ Active API Key stored in browser. Ready to generate.</span>';
-                } else {
-                    statusEl.innerHTML = '<span style="color: #64748b;">Paste your Gemini API key from Google AI Studio.</span>';
-                }
-            }
-        }
-
-        function closeGeminiModal() {
-            const backdrop = document.getElementById('geminiModalBackdrop');
-            if (backdrop) backdrop.style.display = 'none';
-        }
-
-        function toggleKeyVisibility() {
-            const inp = document.getElementById('geminiKeyInput');
-            inp.type = (inp.type === 'password') ? 'text' : 'password';
-        }
-
-        function updateGeminiNavBadge() {
-            const savedKey = localStorage.getItem('gemini_api_key') || '';
-            const dot = document.getElementById('geminiStatusDot');
-            const label = document.getElementById('geminiBtnLabel');
-            if (savedKey) {
-                if (dot) dot.style.color = '#10b981';
-                if (label) {
-                    label.innerText = 'Gemini Pro (Active)';
-                    label.style.color = '#047857';
-                }
-            } else {
-                if (dot) dot.style.color = '#6366f1';
-                if (label) {
-                    label.innerText = 'Gemini Pro AI';
-                    label.style.color = '#4338ca';
-                }
-            }
-        }
-
-        function saveGeminiKey() {
-            const val = document.getElementById('geminiKeyInput').value.trim();
-            if (val) {
-                localStorage.setItem('gemini_api_key', val);
-                document.getElementById('geminiKeyStatus').innerHTML = '<span style="color: #059669; font-weight: 700;">✅ Key saved successfully! Gemini Author active.</span>';
-                updateGeminiNavBadge();
-                setTimeout(() => closeGeminiModal(), 1000);
-            } else {
-                clearGeminiKey();
-            }
-        }
-
-        function clearGeminiKey() {
-            localStorage.removeItem('gemini_api_key');
-            document.getElementById('geminiKeyInput').value = '';
-            document.getElementById('geminiKeyStatus').innerHTML = '<span style="color: #64748b;">Key removed. Falling back to deterministic surgical repair.</span>';
-            updateGeminiNavBadge();
-        }
-
-        async function testGeminiKey() {
-            const key = document.getElementById('geminiKeyInput').value.trim();
-            const statusEl = document.getElementById('geminiKeyStatus');
-            const btn = document.getElementById('btnTestGemini');
-            if (!key) {
-                statusEl.innerHTML = '<span style="color: #dc2626; font-weight: 600;">Please paste a key first.</span>';
-                return;
-            }
-            btn.disabled = true;
-            btn.innerText = 'Testing...';
-            statusEl.innerHTML = '<span style="color: #2563eb;">Connecting to Google Gemini API...</span>';
+        // --- Google Gemini Pro Backend Status Controller ---
+        async function checkGeminiBackendStatus() {
             try {
-                const resp = await fetch('/api/test-gemini', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_key: key })
-                });
+                const resp = await fetch('/api/gemini-status');
                 const data = await resp.json();
-                if (data.valid) {
-                    statusEl.innerHTML = `<span style="color: #059669; font-weight: 700;">✅ Connection successful (${data.model})! Sample output verified.</span>`;
-                    localStorage.setItem('gemini_api_key', key);
-                    updateGeminiNavBadge();
+                const dot = document.getElementById('geminiStatusDot');
+                const label = document.getElementById('geminiBtnLabel');
+                const badge = document.getElementById('geminiBackendStatusBadge');
+                if (data.configured) {
+                    if (dot) dot.style.color = '#10b981';
+                    if (label) {
+                        label.innerText = '✨ Gemini Pro (Backend Active)';
+                        label.style.color = '#4338ca';
+                    }
+                    if (badge) {
+                        badge.style.background = 'linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%)';
+                        badge.style.border = '1px solid #c7d2fe';
+                        badge.title = `Gemini Generative Author active in backend (.env configured: ${data.masked_key})`;
+                    }
                 } else {
-                    statusEl.innerHTML = `<span style="color: #dc2626; font-weight: 600;">❌ Test failed: ${data.error || 'Invalid API key'}</span>`;
+                    if (dot) dot.style.color = '#94a3b8';
+                    if (label) {
+                        label.innerText = 'Surgical Auto-Repair (Deterministic)';
+                        label.style.color = '#64748b';
+                    }
+                    if (badge) {
+                        badge.style.background = '#f8fafc';
+                        badge.style.border = '1px solid #e2e8f0';
+                        badge.title = 'Deterministic surgical auto-repair active. To activate Gemini Pro, paste GEMINI_API_KEY into backend .env file.';
+                    }
                 }
             } catch (err) {
-                statusEl.innerHTML = `<span style="color: #dc2626; font-weight: 600;">❌ Network error: ${err.message}</span>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerText = '⚡ Test Connection';
+                console.warn("Could not check Gemini backend status:", err);
             }
         }
 
         // Prefill first benchmark example
         window.addEventListener('DOMContentLoaded', () => {
-            updateGeminiNavBadge();
+            checkGeminiBackendStatus();
             const selector = document.getElementById('exampleSelector');
             if (selector.options.length > 1) {
                 selector.selectedIndex = 1;
