@@ -170,6 +170,78 @@ def load_xnli_data(max_samples=400):
     return selected
 
 
+def load_hindi_xnli_data(max_samples=400):
+    """Loads Hindi cross-lingual and monolingual pairs from Meta XNLI."""
+    pairs = []
+    hi_train = DATASTORE / "cross_lingual" / "hindi" / "train_hindi_mono.jsonl"
+    if hi_train.exists():
+        with open(hi_train, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                    orig = data.get("original", "").strip()
+                    simp = data.get("simplification", "").strip()
+                    lbl = data.get("label", "")
+                    raw_score = float(data.get("score", 5.0))
+                    if lbl in ["entailment", "contradiction"]:
+                        score = 1.0 if lbl == "entailment" else 0.0
+                        pairs.append({
+                            "source": orig,
+                            "target": simp,
+                            "score": score,
+                            "label_type": lbl,
+                            "dataset": "Hindi_XNLI"
+                        })
+                except Exception:
+                    continue
+
+    random.seed(42)
+    random.shuffle(pairs)
+    selected = pairs[:max_samples]
+    print(f"[DATA] Loaded {len(selected)} Hindi XNLI pairs.")
+    return selected
+
+
+def load_mildsum_data(max_samples=400):
+    """Loads Indian court judgment simplification & contradiction pairs from MILDSum."""
+    pairs = []
+    mildsum_path = DATASTORE / "cross_lingual" / "mildsum" / "train_mildsum.jsonl"
+    if not mildsum_path.exists():
+        return pairs
+
+    with open(mildsum_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                orig = data.get("original", "").strip()
+                simp = data.get("simplification", "").strip()
+                raw_score = float(data.get("score", 5.0))
+                norm_score = max(0.0, min(1.0, raw_score / 10.0))
+                lbl = data.get("label", "entailment")
+                if orig and simp:
+                    pairs.append({
+                        "source": orig,
+                        "target": simp,
+                        "score": norm_score,
+                        "label_type": lbl,
+                        "dataset": "MILDSum"
+                    })
+            except Exception:
+                continue
+
+    random.seed(42)
+    random.shuffle(pairs)
+    selected = pairs[:max_samples]
+    print(f"[DATA] Loaded {len(selected)} MILDSum Indian Legal judgment pairs.")
+    return selected
+
+
 def load_test_frjudge():
     """Loads held-out FrJUDGE test set for evaluation."""
     test_file = DATASTORE / "training" / "test_FrJUDGE.jsonl"
@@ -187,6 +259,26 @@ def load_test_frjudge():
                         "raw_label": float(data.get("label", 5.0))
                     })
     print(f"[TEST] Loaded {len(pairs)} held-out FrJUDGE test pairs.")
+    return pairs
+
+
+def load_test_mildsum():
+    """Loads held-out MILDSum Indian court judgment test set."""
+    test_file = DATASTORE / "cross_lingual" / "mildsum" / "test_mildsum.jsonl"
+    pairs = []
+    if test_file.exists():
+        with open(test_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    data = json.loads(line)
+                    pairs.append({
+                        "source": data["original"].strip(),
+                        "target": data["simplification"].strip(),
+                        "score": float(data.get("score", 5.0)) / 10.0,
+                        "raw_label": float(data.get("score", 5.0))
+                    })
+    print(f"[TEST] Loaded {len(pairs)} held-out MILDSum Indian legal test pairs.")
     return pairs
 
 
@@ -252,13 +344,16 @@ def train_judgebert_contrastive(epochs=3, batch_size=8, lr=2e-5):
     fr_pairs = load_frjudge_data()
     en_pairs = load_contract_nli_data(max_samples=500)
     xnli_pairs = load_xnli_data(max_samples=300)
+    hi_pairs = load_hindi_xnli_data(max_samples=300)
+    mildsum_pairs = load_mildsum_data(max_samples=350)
 
-    all_train_pairs = fr_pairs + en_pairs + xnli_pairs
+    all_train_pairs = fr_pairs + en_pairs + xnli_pairs + hi_pairs + mildsum_pairs
     random.seed(42)
     random.shuffle(all_train_pairs)
     print(f"\n[DATA] Total consolidated training pairs: {len(all_train_pairs)}")
 
     test_pairs = load_test_frjudge()
+    mildsum_test_pairs = load_test_mildsum()
 
     # 2. Load base multilingual model
     base_model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -268,10 +363,16 @@ def train_judgebert_contrastive(epochs=3, batch_size=8, lr=2e-5):
     # Baseline evaluation before fine-tuning
     print("\n--- BASELINE EVALUATION (Before Fine-Tuning) ---")
     base_metrics = evaluate_model_on_test(model, test_pairs)
-    print(f"  Baseline Pearson r:      {base_metrics['pearson_r']}")
-    print(f"  Baseline Spearman rho:   {base_metrics['spearman_rho']}")
-    print(f"  Baseline RMSE (0-10):    {base_metrics['rmse']}")
-    print(f"  Baseline MAE:            {base_metrics['mae']}")
+    print(f"  FrJUDGE Baseline Pearson r:    {base_metrics['pearson_r']}")
+    print(f"  FrJUDGE Baseline Spearman rho: {base_metrics['spearman_rho']}")
+    print(f"  FrJUDGE Baseline RMSE (0-10):  {base_metrics['rmse']}")
+    print(f"  FrJUDGE Baseline MAE:          {base_metrics['mae']}")
+
+    if mildsum_test_pairs:
+        base_mildsum = evaluate_model_on_test(model, mildsum_test_pairs)
+        print(f"  MILDSum Baseline Pearson r:    {base_mildsum['pearson_r']}")
+        print(f"  MILDSum Baseline Spearman rho: {base_mildsum['spearman_rho']}")
+        print(f"  MILDSum Baseline RMSE (0-10):  {base_mildsum['rmse']}")
 
     # 3. Fine-tuning setup
     # Freeze lower token embeddings (layers 0-5) to preserve multilingual token foundations
@@ -363,6 +464,23 @@ def train_judgebert_contrastive(epochs=3, batch_size=8, lr=2e-5):
     print(f"  Final Root Mean Squared Error:   {final_metrics['rmse']} (Reduction: -{delta_rmse:.3f})")
     print(f"  Final Mean Absolute Error:       {final_metrics['mae']}")
 
+    mildsum_summary = {}
+    if mildsum_test_pairs:
+        print("\n" + "=" * 70)
+        print("  FINAL EVALUATION ON HELD-OUT MILDSum (INDIAN LEGAL JUDGMENTS)")
+        print("=" * 70)
+        final_mildsum = evaluate_model_on_test(model, mildsum_test_pairs)
+        print(f"  Final MILDSum Pearson r:         {final_mildsum['pearson_r']} (base: {base_mildsum['pearson_r']})")
+        print(f"  Final MILDSum Spearman rho:     {final_mildsum['spearman_rho']}")
+        print(f"  Final MILDSum RMSE:             {final_mildsum['rmse']} (base: {base_mildsum['rmse']})")
+        mildsum_summary = {
+            "mildsum_test_samples": len(mildsum_test_pairs),
+            "mildsum_baseline_pearson_r": base_mildsum["pearson_r"],
+            "mildsum_final_pearson_r": final_mildsum["pearson_r"],
+            "mildsum_baseline_rmse": base_mildsum["rmse"],
+            "mildsum_final_rmse": final_mildsum["rmse"]
+        }
+
     # 5. Save the fine-tuned model checkpoint
     print(f"\n[SAVE] Saving fine-tuned JUDGEBERT model to: {OUTPUT_MODEL_DIR}")
     model.save(str(OUTPUT_MODEL_DIR))
@@ -383,6 +501,7 @@ def train_judgebert_contrastive(epochs=3, batch_size=8, lr=2e-5):
         "final_rmse": final_metrics["rmse"],
         "rmse_reduction": round(delta_rmse, 3)
     }
+    summary.update(mildsum_summary)
 
     with open(OUTPUT_MODEL_DIR / "training_summary.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)

@@ -37,7 +37,7 @@ Then open your browser at **[http://localhost:5000](http://localhost:5000)**.
 > If local fine-tuned weights are not generated, the engine will automatically rely on the base model fallback (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
 
 ### 3. Run Automated Regression Test Suite
-Verify all 19 end-to-end evaluation, Hindi cross-lingual, and closed-loop self-correction tests:
+Verify all 21 end-to-end evaluation, Hindi cross-lingual, MILDSum Indian court judgment, and closed-loop self-correction tests:
 
 ```bash
 python verify_demo_server.py
@@ -72,16 +72,22 @@ python verify_demo_server.py
 - **Closed-Loop Verification:** Loops candidates through the Arbiter until achieving a score $\ge 9.0/10$ with zero guardrail violations.
 - **One-Click Application:** Users can view the exact before-and-after score delta (e.g. $0.5 \rightarrow 10.0/10$) and apply the repaired sentence directly to the target.
 
+### 🇮🇳 5. MILDSum Indian Legal Judgments & Multilingual Hindi Support
+- **MILDSum Multilingual Indian Legal Judgments:** Integrated 424 benchmark pairs derived from authentic High Court and Supreme Court of India judgments (EMNLP 2023 `Law-AI/MILDSum`), covering NDPS Act Section 37 bail conditions, administrative writ petitions, matrimonial law, and retrospective orders.
+- **Cross-Lingual Evaluation (EN ↔ HI):** Evaluates original English court judgments directly against professional Hindi legal practitioner summaries.
+- **Monolingual Hindi Simplification (HI ↔ HI):** Scores Hindi legal formulations against plain-language Devanagari rewrites.
+- **Indian Legal Deontic Guardrails:** Custom neuro-symbolic checks for Indian judicial rulings (bail granted vs dismissed, payment directives vs claim dismissals, retrospective bars).
+
 ---
 
 ## 🏋️ Model Training & Fine-Tuning
 
-To train or fine-tune the multilingual contrastive bi-encoder (`judgebert-multilingual-v2`) on FrJUDGE, Stanford ContractNLI, and Meta XNLI:
+To train or fine-tune the multilingual contrastive bi-encoder (`judgebert-multilingual-v2`) on FrJUDGE, Stanford ContractNLI, Meta XNLI, and MILDSum:
 
 ```bash
 python finetune_judgebert_contrastive.py
 ```
-*This fine-tunes the contrastive objective and outputs the weights to `demo_app/models/judgebert-multilingual-v2/model.safetensors` in ~2 minutes.*
+*This fine-tunes the contrastive objective across all French, English, and Hindi legal pairs and outputs weights in ~2 minutes.*
 
 To run offline multilingual evaluation across all metrics (Pearson $r$, Spearman $\rho$, MSE, MAE, Classification Accuracy & F1):
 
@@ -109,15 +115,19 @@ JUDGEBERT/
 │   ├── monolingual_english/  # Stanford ContractNLI (English Legal)
 │   ├── cross_lingual/
 │   │   ├── xnli/             # Meta XNLI 1.0 (FR ↔ EN multilingual pairs)
-│   │   └── hindi/            # Hindi monolingual & Cross-Lingual (EN ↔ HI, FR ↔ HI) pairs
+│   │   ├── hindi/            # Hindi monolingual & Cross-Lingual (EN ↔ HI, FR ↔ HI) pairs
+│   │   └── mildsum/          # MILDSum Indian Legal Judgments (EN ↔ HI, HI ↔ HI, Contradictions)
 │   └── corpus_coling/        # French simplification parallel corpora
 ├── scripts/                  # Data extraction & evaluation utilities
 │   ├── extract_hindi_dataset.py  # Hindi dataset extraction from XNLI
-│   └── test_hindi_engine.py      # Hindi Devanagari validation script
+│   ├── download_mildsum.py       # MILDSum sample downloader
+│   ├── process_mildsum.py        # MILDSum Indian court judgment parser & aligner
+│   ├── test_hindi_engine.py      # Hindi Devanagari validation script
+│   └── test_mildsum_engine.py    # MILDSum engine validation script
 ├── finetune_judgebert_contrastive.py  # Contrastive fine-tuning pipeline
 ├── train_and_evaluate_multilingual.py # Evaluation & benchmarking script
 ├── download_and_setup_datasets.py     # Automated dataset downloader
-├── verify_demo_server.py     # 19-test end-to-end automated regression test suite
+├── verify_demo_server.py     # 21-test end-to-end automated regression test suite
 ├── run_demo.py               # One-click demo server launcher
 ├── requirements.txt          # Python dependencies
 ├── .gitignore                # Git ignore patterns
@@ -135,5 +145,13 @@ JUDGEBERT/
   booktitle={Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
   pages={92--118},
   year={2025}
+}
+
+@inproceedings{datta-etal-2023-mildsum,
+  title={{MILDS}um: A Novel Benchmark Dataset for Multilingual Summarization of {I}ndian Legal Case Judgments},
+  author={Datta, Debtanu and Soni, Shubham and Mukherjee, Rajdeep and Ghosh, Saptarshi},
+  booktitle={Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing},
+  pages={5291--5302},
+  year={2023}
 }
 ```

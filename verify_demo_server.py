@@ -141,6 +141,25 @@ if __name__ == "__main__":
     assert g5c["score"] <= 1.0
     assert g5c["guardrails"]["passed"] is False
 
+    # 5d. MILDSum Cross-Lingual Indian Legal Judgment Equivalence
+    g5d = test_evaluation(
+        "[MILDSum Indian Legal] High Court Section 37 NDPS Act Statutory Ruling",
+        "Section 37 states that bail should not be granted to an accused unless the accused is able to satisfy twin conditions i.e. reasonable ground for believing that the accused is not guilty of such an offence and that the accused would not commit an offence or is not likely to commit an offence, if granted bail.",
+        "धारा 37 में कहा गया है कि किसी अभियुक्त को जमानत तब तक नहीं दी जानी चाहिए जब तक कि अभियुक्त दोहरी शर्तों को पूरा करने में सक्षम न हो, यानी यह विश्वास करने के लिए उचित आधार हो कि अभियुक्त इस तरह के अपराध का दोषी नहीं है और जमानत मिलने पर अभियुक्त ऐसा अपराध नहीं करेगा या ऐसा करने की संभावना नहीं है।"
+    )
+    assert g5d["score"] >= 7.0
+    assert g5d["guardrails"]["passed"] is True
+    assert "HI" in g5d["mode"] or "Hindi" in g5d["mode"]
+
+    # 5e. MILDSum Court Directive Reversal Contradiction
+    g5e = test_evaluation(
+        "[MILDSum Contradiction] High Court Directive Inversion (Payment Ordered vs Claim Dismissed)",
+        "The Delhi High Court on Tuesday directed the Delhi Government to pay over Rs. 16 lakhs to a senior judicial officer as reimbursement for the expenses incurred by him for his COVID-19 treatment.",
+        "दिल्ली हाईकोर्ट ने दिल्ली सरकार को न्यायिक अधिकारी के COVID-19 उपचार के खर्चों की प्रतिपूर्ति के रूप में 16 लाख रुपये का भुगतान करने के दावे को खारिज कर दिया।"
+    )
+    assert g5e["score"] <= 1.0
+    assert g5e["guardrails"]["passed"] is False
+
     # ==========================================
     # PART B: LEGAL & CONTRACTUAL MEANING PRESERVATION
     # ==========================================
@@ -272,6 +291,6 @@ if __name__ == "__main__":
     assert r8["repaired_target"].strip().lower() != "Employees are strictly prohibited from sharing customer passwords under any circumstances.".lower()
 
     print("\n" + "="*80)
-    print(" ALL 17 EVALUATION & CLOSED-LOOP AUTO-REPAIR TESTS PASSED WITH 100% ACCURACY! ")
+    print(" ALL 21 EVALUATION & CLOSED-LOOP AUTO-REPAIR TESTS PASSED WITH 100% ACCURACY! ")
     print("="*80)
 

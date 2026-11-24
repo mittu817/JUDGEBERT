@@ -831,6 +831,42 @@ class JudgeBertEngine:
             "category": "Obligation Flips (Hindi Legal)",
         })
 
+        # 16. MILDSum Indian Legal Benchmark: Section 37 NDPS Act
+        examples.append({
+            "id": 916,
+            "title": "🇮🇳 [MILDSum Indian Legal] High Court Statutory Ruling: Section 37 NDPS Act Bail",
+            "original": "Section 37 states that bail should not be granted to an accused unless the accused is able to satisfy twin conditions i.e. reasonable ground for believing that the accused is not guilty of such an offence and that the accused would not commit an offence or is not likely to commit an offence, if granted bail.",
+            "simplification": "धारा 37 में कहा गया है कि किसी अभियुक्त को जमानत तब तक नहीं दी जानी चाहिए जब तक कि अभियुक्त दोहरी शर्तों को पूरा करने में सक्षम न हो, यानी यह विश्वास करने के लिए उचित आधार हो कि अभियुक्त इस तरह के अपराध का दोषी नहीं है और जमानत मिलने पर अभियुक्त ऐसा अपराध नहीं करेगा या ऐसा करने की संभावना नहीं है।",
+            "human_score": "10.0",
+            "simplicity": "Bilingual Court Judgment Equivalence",
+            "justifications": "MILDSum Ground-Truth: Exact statutory and judicial holding preserved identically across English judgment and Hindi practitioner summary.",
+            "category": "Indian Court Judgments (MILDSum Cross-Lingual)",
+        })
+
+        # 17. MILDSum Legal Directive Contradiction (Payment Ordered vs Claim Dismissed)
+        examples.append({
+            "id": 917,
+            "title": "🇮🇳 [MILDSum Contradiction] High Court Directive Inversion (Payment Ordered vs Dismissed)",
+            "original": "The Delhi High Court on Tuesday directed the Delhi Government to pay over Rs. 16 lakhs to a senior judicial officer as reimbursement for the expenses incurred by him for his COVID-19 treatment.",
+            "simplification": "दिल्ली हाईकोर्ट ने दिल्ली सरकार को न्यायिक अधिकारी के COVID-19 उपचार के खर्चों की प्रतिपूर्ति के रूप में 16 लाख रुपये का भुगतान करने के दावे को खारिज कर दिया।",
+            "human_score": "0.5",
+            "simplicity": "Severe Judicial Contradiction",
+            "justifications": "Direct Judicial Inversion: High Court directive ordering payment (भुगतान करने का निर्देश दिया) inverted to dismissal of claim (दावे को खारिज कर दिया).",
+            "category": "Judgment Outcome Flips (MILDSum Contradiction)",
+        })
+
+        # 18. MILDSum Monolingual Hindi Administrative Ruling
+        examples.append({
+            "id": 918,
+            "title": "🇮🇳 [MILDSum Hindi Monolingual] High Court Administrative Ruling: Retrospective Operation Bar",
+            "original": "जम्मू एंड कश्मीर एंड लद्दाख हाईकोर्ट ने एक महत्वपूर्ण फैसले में कहा कि सरकारी आदेश के पूर्वव्यापी संचालन की अनुमति नहीं दी जा सकती।",
+            "simplification": "उच्च न्यायालय ने स्पष्ट किया कि सरकारी आदेश को पिछली तारीख से पूर्वव्यापी प्रभाव से लागू नहीं किया जा सकता है।",
+            "human_score": "9.5",
+            "simplicity": "Plain Hindi Legal Simplification",
+            "justifications": "MILDSum Monolingual Preservation: Complete ratio decidendi barring retrospective government orders preserved in natural Hindi legal simplification.",
+            "category": "Indian High Court Rulings (MILDSum Hindi Monolingual)",
+        })
+
         # Curated French examples from FrJUDGE
         curated_ids = [1, 2, 3, 4, 5, 12, 25, 45]
         for item in self.dataset_items:

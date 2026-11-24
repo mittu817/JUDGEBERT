@@ -19,12 +19,14 @@ class LegalGuardrails:
     OBLIGATION_EN = [
         r"\bshall\b", r"\bmust\b", r"\bis required to\b", r"\bare required to\b",
         r"\bundertakes? to\b", r"\bagrees? to\b", r"\bhas an obligation to\b",
-        r"\bis obligated to\b", r"\bcovenants to\b"
+        r"\bis obligated to\b", r"\bcovenants to\b", r"\bdirected\b", r"\bordered\b",
+        r"\bmandated\b", r"\bunder an obligation\b"
     ]
     PROHIBITION_EN = [
         r"\bshall not\b", r"\bmust not\b", r"\bmay not\b", r"\bcannot\b",
         r"\bprohibited from\b", r"\bforbidden to\b", r"\bnot permitted to\b",
-        r"\bagrees? not to\b", r"\bundertakes? not to\b"
+        r"\bagrees? not to\b", r"\bundertakes? not to\b", r"\bshould not be granted\b",
+        r"\bshall not be granted\b", r"\bdenied\b", r"\bdismissed\b", r"\bquashed\b"
     ]
     EXEMPTION_EN = [
         r"\bnot required to\b", r"\bis not obligated to\b", r"\bunder no obligation\b",
@@ -45,14 +47,18 @@ class LegalGuardrails:
     ]
 
     OBLIGATION_HI = [
-        r"होगा", r"होगी", r"होंगे", r"चाहिए", r"अनिवार्य है", r"बाध्य है", r"आवश्यक है", r"कर्तव्य है"
+        r"होगा", r"होगी", r"होंगे", r"चाहिए", r"अनिवार्य है", r"बाध्य है", r"आवश्यक है", r"कर्तव्य है",
+        r"निर्देश दिया", r"आदेश दिया", r"बाध्य किया", r"लागू होगी"
     ]
     PROHIBITION_HI = [
         r"मनाही है", r"सख्त मनाही", r"वर्जित है", r"प्रतिबंधित है", r"अनुमति नहीं", r"नहीं कर सकते",
-        r"नहीं होना चाहिए", r"अधिकार नहीं", r"निषेध"
+        r"नहीं होना चाहिए", r"नहीं.*?चाहिए", r"नहीं दी जानी चाहिए", r"नहीं दिया जाना चाहिए",
+        r"अधिकार नहीं", r"निषेध", r"खारिज कर दिया", r"खारिज किया",
+        r"अनुमति नहीं दी जा सकती", r"इनकार कर दिया", r"अस्वीकार किया", r"लागू नहीं होगी"
     ]
     EXEMPTION_HI = [
-        r"आवश्यकता नहीं", r"बाध्य नहीं", r"छूट है", r"अनिवार्य नहीं", r"सकते हैं", r"अनुमति है"
+        r"आवश्यकता नहीं", r"बाध्य नहीं", r"छूट है", r"अनिवार्य नहीं", r"सकते हैं", r"अनुमति है",
+        r"जमानत दी", r"जमानत प्रदान की", r"राहत दी", r"स्वीकार किया"
     ]
 
     # --- Exception Markers ---
@@ -108,6 +114,10 @@ class LegalGuardrails:
         (r"\bacheteur\b", r"\bvendeur\b", "Acheteur", "Vendeur"),
         (r"\bclient\b", r"\bprestataire\b", "Client", "Prestataire"),
         (r"\bcr[ée]ancier\b", r"\bd[ée]biteur\b", "Créancier", "Débiteur"),
+        # Indian Legal Judgments (MILDSum)
+        (r"\bpetitioner\b", r"\brespondent\b", "Petitioner", "Respondent"),
+        (r"\bappellant\b", r"\brespondent\b", "Appellant", "Respondent"),
+        (r"\bयाचिकाकर्ता\b", r"\bप्रतिवादी\b", "याचिकाकर्ता (Petitioner)", "प्रतिवादी (Respondent)"),
     ]
 
     @classmethod
@@ -309,8 +319,9 @@ class LegalGuardrails:
         orig_lower = orig.lower()
         simp_lower = simp.lower()
 
-        exc_found_orig = [m for m in (cls.EXCEPTION_EN + cls.EXCEPTION_FR) if m in orig_lower]
-        exc_found_simp = [m for m in (cls.EXCEPTION_EN + cls.EXCEPTION_FR) if m in simp_lower]
+        all_exceptions = cls.EXCEPTION_EN + cls.EXCEPTION_FR + cls.EXCEPTION_HI
+        exc_found_orig = [m for m in all_exceptions if m in orig_lower]
+        exc_found_simp = [m for m in all_exceptions if m in simp_lower]
 
         if exc_found_orig and not exc_found_simp:
             markers_str = ", ".join(f"'{m}'" for m in exc_found_orig[:2])
@@ -535,7 +546,13 @@ class LegalGuardrails:
             "bailleur", "preneur", "contractuel", "exclut la garantie", "dispositions", "code civil",
             # Hindi Legal & Contractual Markers
             "मनाही", "वर्जित", "प्रतिबंधित", "किराया", "अनुबंध", "शर्त", "दायित्व", "बाध्य",
-            "अधिकार", "बीमा", "हर्जाना", "उल्लंघन", "गोपनीय", "कर्मचारी", "किराएदार"
+            "अधिकार", "बीमा", "हर्जाना", "उल्लंघन", "गोपनीय", "कर्मचारी", "किराएदार",
+            # Indian Legal Judgments & Statutes (MILDSum)
+            "court", "high court", "supreme court", "judgment", "ruling", "petitioner", "respondent",
+            "accused", "bail", "ndps", "act", "section", "decree", "order", "quashed", "reimbursement",
+            "अदालत", "कोर्ट", "हाईकोर्ट", "सुप्रीम कोर्ट", "फैसले", "फैसला", "निर्णय", "याचिका",
+            "याचिकाकर्ता", "प्रतिवादी", "आरोपी", "अभियुक्त", "जमानत", "धारा", "अधिनियम", "डिक्री",
+            "आदेश", "रद्द", "प्रतिपूर्ति", "दोषी", "दोषमुक्त", "खंडपीठ", "पूर्वाग्रह", "प्रावधान"
         ]
         if any(m in text_lower for m in legal_markers):
             return "legal"
