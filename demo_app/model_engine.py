@@ -102,6 +102,10 @@ class JudgeBertEngine:
                             continue
 
     def detect_lang(self, text: str) -> str:
+        # Check for Devanagari script (Hindi / Indic languages)
+        if re.search(r"[\u0900-\u097F]", text):
+            return "hi"
+
         words = set([w.strip(".,;:?!'\"()[]{}").lower() for w in text.split()])
         french_words = {
             "le", "la", "les", "des", "du", "un", "une", "est", "et", "en", "pour", "dans",
@@ -368,6 +372,8 @@ class JudgeBertEngine:
 
         if lang_o == "en" and lang_s == "en":
             mode_name = f"Monolingual English ({domain_tag} • RoBERTa NLI + ColBERT MaxSim)"
+        elif lang_o == "hi" and lang_s == "hi":
+            mode_name = f"Monolingual Hindi ({domain_tag} • ColBERT MaxSim Multi-Vector)"
         elif lang_o != lang_s:
             mode_name = f"Cross-Lingual ({lang_o.upper()} ↔ {lang_s.upper()} • {domain_tag} • ColBERT MaxSim)"
         else:
@@ -527,8 +533,8 @@ class JudgeBertEngine:
             else:
                 contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.25 else 0.0
                 final_score = max(0.0, min(10.0, dense_score - contra_penalty - gr_result["total_penalty"]))
-        elif lang_o == "fr" and lang_s == "fr":
-            # French Monolingual Legal: rely on fine-tuned multilingual model + guardrails
+        elif (lang_o == "fr" and lang_s == "fr") or (lang_o == "hi" and lang_s == "hi"):
+            # French / Hindi Monolingual Legal: rely on fine-tuned multilingual model + guardrails
             contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.30 else 0.0
             final_score = max(0.0, min(10.0, dense_score - contra_penalty - gr_result["total_penalty"]))
         elif resolved_domain == "general":
@@ -787,6 +793,42 @@ class JudgeBertEngine:
             "simplicity": "Cross-Lingual Equivalent",
             "justifications": "Bilingual Factual Preservation: Exact entity, location, and annual visitor count preserved across French and English.",
             "category": "Culture, History & Places (General Context)",
+        })
+
+        # 13. Hindi Monolingual Paraphrase
+        examples.append({
+            "id": 913,
+            "title": "🇮🇳 [Hindi Monolingual] Corporate Earnings Paraphrase",
+            "original": "कंपनी ने इस तिमाही में भारी मुनाफ़े की सूचना दी।",
+            "simplification": "व्यापार ने पिछले तीन महीनों में बहुत सारा पैसा कमाया।",
+            "human_score": "8.5",
+            "simplicity": "Plain Hindi",
+            "justifications": "Hindi Paraphrase: Core business revenue facts and quarterly timeframes preserved accurately in natural Hindi.",
+            "category": "Economy & Business (Hindi Monolingual)",
+        })
+
+        # 14. Cross-Lingual English -> Hindi Equivalent
+        examples.append({
+            "id": 914,
+            "title": "🌐 [Cross-Lingual EN->HI] English Legal Clause to Hindi Simplification",
+            "original": "The tenant must pay rent on the first day of each month.",
+            "simplification": "किराएदार को हर महीने की पहली तारीख को किराया देना होगा।",
+            "human_score": "9.5",
+            "simplicity": "Bilingual Equivalence",
+            "justifications": "Cross-Lingual Hindi Preservation: Legal obligation to pay rent on the 1st of each month accurately translated and simplified.",
+            "category": "Contract Restrictions (Cross-Lingual EN ↔ HI)",
+        })
+
+        # 15. Hindi Legal Contradiction (Prohibition vs Permission)
+        examples.append({
+            "id": 915,
+            "title": "🇮🇳 [Hindi Legal Contradiction] Prohibition vs Permission Inversion",
+            "original": "कर्मचारियों को ग्राहकों के पासवर्ड साझा करने की सख्त मनाही है।",
+            "simplification": "कर्मचारी आवश्यकता पड़ने पर ग्राहकों के पासवर्ड साझा कर सकते हैं।",
+            "human_score": "0.5",
+            "simplicity": "Direct Contradiction",
+            "justifications": "Deontic Inversion in Hindi: Prohibited obligation (सख्त मनाही) inverted into permission (साझा कर सकते हैं).",
+            "category": "Obligation Flips (Hindi Legal)",
         })
 
         # Curated French examples from FrJUDGE

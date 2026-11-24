@@ -44,6 +44,17 @@ class LegalGuardrails:
         r"\bdispensée de\b", r"\bnon requis\b", r"\baucune obligation\b", r"\bsans obligation\b"
     ]
 
+    OBLIGATION_HI = [
+        r"होगा", r"होगी", r"होंगे", r"चाहिए", r"अनिवार्य है", r"बाध्य है", r"आवश्यक है", r"कर्तव्य है"
+    ]
+    PROHIBITION_HI = [
+        r"मनाही है", r"सख्त मनाही", r"वर्जित है", r"प्रतिबंधित है", r"अनुमति नहीं", r"नहीं कर सकते",
+        r"नहीं होना चाहिए", r"अधिकार नहीं", r"निषेध"
+    ]
+    EXEMPTION_HI = [
+        r"आवश्यकता नहीं", r"बाध्य नहीं", r"छूट है", r"अनिवार्य नहीं", r"सकते हैं", r"अनुमति है"
+    ]
+
     # --- Exception Markers ---
     EXCEPTION_EN = [
         "unless", "except as provided", "except when", "except in the case",
@@ -53,6 +64,9 @@ class LegalGuardrails:
     EXCEPTION_FR = [
         "sauf si", "sauf en cas", "sauf", "à l'exception de", "à moins que",
         "sous réserve de", "hormis", "excepté", "pourvu que"
+    ]
+    EXCEPTION_HI = [
+        "सिवाय", "जब तक कि", "बशर्ते कि", "को छोड़कर", "यदि नहीं"
     ]
 
     # --- Temporal & Numerical Regex ---
@@ -223,21 +237,30 @@ class LegalGuardrails:
         has_proh_fr2 = any(re.search(p, simp_lower) for p in cls.PROHIBITION_FR)
         has_exemp_fr2 = any(re.search(p, simp_lower) for p in cls.EXEMPTION_FR)
 
-        is_ob1 = has_ob_en1 or has_ob_fr1
-        is_proh1 = has_proh_en1 or has_proh_fr1
-        is_exemp1 = has_exemp_en1 or has_exemp_fr1
+        # Check Hindi
+        has_ob_hi1 = any(re.search(p, orig_lower) for p in cls.OBLIGATION_HI)
+        has_proh_hi1 = any(re.search(p, orig_lower) for p in cls.PROHIBITION_HI)
+        has_exemp_hi1 = any(re.search(p, orig_lower) for p in cls.EXEMPTION_HI)
 
-        is_ob2 = has_ob_en2 or has_ob_fr2
-        is_proh2 = has_proh_en2 or has_proh_fr2
-        is_exemp2 = has_exemp_en2 or has_exemp_fr2
+        has_ob_hi2 = any(re.search(p, simp_lower) for p in cls.OBLIGATION_HI)
+        has_proh_hi2 = any(re.search(p, simp_lower) for p in cls.PROHIBITION_HI)
+        has_exemp_hi2 = any(re.search(p, simp_lower) for p in cls.EXEMPTION_HI)
+
+        is_ob1 = has_ob_en1 or has_ob_fr1 or has_ob_hi1
+        is_proh1 = has_proh_en1 or has_proh_fr1 or has_proh_hi1
+        is_exemp1 = has_exemp_en1 or has_exemp_fr1 or has_exemp_hi1
+
+        is_ob2 = has_ob_en2 or has_ob_fr2 or has_ob_hi2
+        is_proh2 = has_proh_en2 or has_proh_fr2 or has_proh_hi2
+        is_exemp2 = has_exemp_en2 or has_exemp_fr2 or has_exemp_hi2
 
         # 1. Direct flip: Positive Obligation -> Prohibition
         if (is_ob1 and not is_proh1) and is_proh2:
             return True, "Obligation Reversal : A contractual obligation became a prohibition.", 9.0
 
-        # 2. Direct flip: Prohibition -> Positive Obligation
-        if is_proh1 and (is_ob2 and not is_proh2):
-            return True, "Prohibition Reversal : A formal prohibition became an obligation.", 9.0
+        # 2. Direct flip: Prohibition -> Positive Obligation or Permission
+        if is_proh1 and (is_ob2 or is_exemp2) and not is_proh2:
+            return True, "Prohibition Reversal : A formal prohibition became an obligation or permission.", 9.0
 
         # 3. Obligation -> Exemption
         if (is_ob1 and not is_exemp1) and is_exemp2:
@@ -265,10 +288,11 @@ class LegalGuardrails:
         # 5. Generic Negation mismatch on key predicates (excluding adverbial prepositions like without/sans)
         neg_en = {'not', 'never', 'neither', 'nor', 'cannot', "can't", "won't", "prohibited", "forbidden", "banned"}
         neg_fr = {'ne', 'pas', 'aucun', 'aucune', 'nul', 'nulle', 'jamais', 'interdit', 'interdite', 'interdits', 'interdites', 'prohibé', 'défendu'}
-        w1 = set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', orig_lower))
-        w2 = set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', simp_lower))
-        has_neg1 = bool(w1 & (neg_en | neg_fr))
-        has_neg2 = bool(w2 & (neg_en | neg_fr))
+        neg_hi = {'नहीं', 'मत', 'ना', 'वर्जित', 'मनाही', 'निषेध', 'प्रतिबंधित'}
+        w1 = set(orig_lower.split()) | set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', orig_lower))
+        w2 = set(simp_lower.split()) | set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', simp_lower))
+        has_neg1 = bool(w1 & (neg_en | neg_fr | neg_hi))
+        has_neg2 = bool(w2 & (neg_en | neg_fr | neg_hi))
 
         if has_neg1 != has_neg2 and ((is_ob1 and not is_proh1) or (is_ob2 and not is_proh2) or excl_orig or excl_simp):
             return True, "Polarity Inversion : Conflicting negation detected in core legal obligation.", 8.5
@@ -508,7 +532,10 @@ class LegalGuardrails:
             "lessee", "lessor", "licensor", "licensee", "disclosing party", "receiving party",
             "prohibit", "forbidden", "interdit", "confidential", "tenant", "landlord",
             "avenant", "assur", "sinistre", "indemnité", "subrogation", "résiliation",
-            "bailleur", "preneur", "contractuel", "exclut la garantie", "dispositions", "code civil"
+            "bailleur", "preneur", "contractuel", "exclut la garantie", "dispositions", "code civil",
+            # Hindi Legal & Contractual Markers
+            "मनाही", "वर्जित", "प्रतिबंधित", "किराया", "अनुबंध", "शर्त", "दायित्व", "बाध्य",
+            "अधिकार", "बीमा", "हर्जाना", "उल्लंघन", "गोपनीय", "कर्मचारी", "किराएदार"
         ]
         if any(m in text_lower for m in legal_markers):
             return "legal"

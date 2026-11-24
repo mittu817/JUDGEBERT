@@ -123,6 +123,24 @@ if __name__ == "__main__":
     assert g5["score"] >= 8.5
     assert g5["guardrails"]["passed"] is True
 
+    # 5b. Cross-Lingual EN -> HI Legal Clause
+    g5b = test_evaluation(
+        "[Cross-Lingual EN -> HI] Legal Lease Rent Obligation",
+        "The tenant must pay rent on the first day of each month.",
+        "किराएदार को हर महीने की पहली तारीख को किराया देना होगा।"
+    )
+    assert g5b["score"] >= 7.5
+    assert "HI" in g5b["mode"] or "Hindi" in g5b["mode"]
+
+    # 5c. Hindi Legal Prohibition Reversal Contradiction
+    g5c = test_evaluation(
+        "[Hindi Legal Contradiction] Prohibition vs Permission Inversion",
+        "कर्मचारियों को ग्राहकों के पासवर्ड साझा करने की सख्त मनाही है।",
+        "कर्मचारी आवश्यकता पड़ने पर ग्राहकों के पासवर्ड साझा कर सकते हैं。"
+    )
+    assert g5c["score"] <= 1.0
+    assert g5c["guardrails"]["passed"] is False
+
     # ==========================================
     # PART B: LEGAL & CONTRACTUAL MEANING PRESERVATION
     # ==========================================
