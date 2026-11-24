@@ -42,12 +42,41 @@ def repair():
     orig = data.get("original", "").strip()
     simp = data.get("simplification", "").strip()
     domain = data.get("domain", "auto").strip()
+    api_key = data.get("api_key", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
 
     if not orig or not simp:
         return jsonify({"error": "Please provide both the original clause and the simplified version."}), 400
 
-    result = engine.auto_repair(orig, simp, domain=domain)
+    result = engine.auto_repair(orig, simp, domain=domain, api_key=api_key)
     return jsonify(result)
+
+
+@app.route("/api/test-gemini", methods=["POST"])
+def test_gemini():
+    data = request.get_json(force=True) or {}
+    api_key = data.get("api_key", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return jsonify({"valid": False, "error": "No API key provided. Please paste your Gemini API key."}), 400
+    
+    try:
+        from demo_app.gemini_generator import GeminiGenerator
+        test_cands = GeminiGenerator.generate_simplification_candidates(
+            orig="The tenant must pay rent on the first of each month.",
+            flawed_simp="The tenant pays rent.",
+            alerts=[],
+            lang="en",
+            api_key=api_key,
+            count=1
+        )
+        if test_cands:
+            return jsonify({
+                "valid": True,
+                "model": "Google Gemini (Pro/Flash)",
+                "sample": test_cands[0]
+            })
+        return jsonify({"valid": False, "error": "Gemini API rejected request or returned empty response. Check key permissions or quota."}), 400
+    except Exception as e:
+        return jsonify({"valid": False, "error": str(e)}), 500
 
 
 @app.route("/api/simplify-levels", methods=["POST"])

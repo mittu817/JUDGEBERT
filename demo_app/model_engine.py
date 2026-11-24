@@ -3,6 +3,7 @@ import re
 import json
 import difflib
 import numpy as np
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from demo_app.legal_guardrails import LegalGuardrails
@@ -952,9 +953,9 @@ class JudgeBertEngine:
                     break
         return results
 
-    def auto_repair(self, orig: str, simp: str, domain: str = "auto"):
+    def auto_repair(self, orig: str, simp: str, domain: str = "auto", api_key: Optional[str] = None):
         from demo_app.auto_repair import ClosedLoopAutoRepair
-        return ClosedLoopAutoRepair.repair(self, orig, simp, domain=domain)
+        return ClosedLoopAutoRepair.repair(self, orig, simp, domain=domain, api_key=api_key)
 
     def multilevel_simplify(self, orig: str, domain: str = "auto"):
         from demo_app.auto_repair import ClosedLoopAutoRepair

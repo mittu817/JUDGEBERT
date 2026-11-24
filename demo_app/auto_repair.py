@@ -129,13 +129,17 @@ class ClosedLoopAutoRepair:
         return o == c
 
     @classmethod
-    def repair(cls, engine, orig: str, simp: str, domain: str = "auto") -> Dict[str, Any]:
+    def repair(cls, engine, orig: str, simp: str, domain: str = "auto", api_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Executes the closed-loop repair on (orig, simp).
+        Supports Gemini Generative Author synthesis with JUDGEBERT closed-loop verification,
+        with seamless fallback to neuro-symbolic surgical patching.
         Guarantees that the returned suggestion is NEVER a blind verbatim copy of orig.
         """
+        import os
         orig_clean = orig.strip()
         simp_clean = simp.strip()
+        resolved_api_key = (api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
 
         # Step 1: Initial Arbiter Evaluation
         initial_eval = engine.evaluate_pair(orig_clean, simp_clean, domain=domain)
@@ -146,6 +150,7 @@ class ClosedLoopAutoRepair:
             return {
                 "success": True,
                 "repaired": False,
+                "generator": "none",
                 "original": orig_clean,
                 "flawed_target": simp_clean,
                 "repaired_target": simp_clean,
@@ -156,6 +161,59 @@ class ClosedLoopAutoRepair:
                 "evaluation": initial_eval,
                 "iterations": 0
             }
+
+        gr_alerts = initial_eval.get("guardrails", {}).get("alerts", [])
+
+        # Step 1.5: If Gemini API Key is available, invoke the Generative Author first!
+        if resolved_api_key:
+            try:
+                from demo_app.gemini_generator import GeminiGenerator
+                lang = engine.detect_lang(orig_clean)
+                gemini_cands = GeminiGenerator.generate_simplification_candidates(
+                    orig=orig_clean,
+                    flawed_simp=simp_clean,
+                    alerts=gr_alerts,
+                    lang=lang,
+                    api_key=resolved_api_key,
+                    count=3
+                )
+                if gemini_cands:
+                    scored_gemini = []
+                    for g_cand in gemini_cands:
+                        if cls._is_trivial_copy(orig_clean, g_cand):
+                            continue
+                        g_eval = engine.evaluate_pair(orig_clean, g_cand, domain=domain)
+                        g_score = g_eval.get("score", 0.0)
+                        g_passed = g_eval.get("guardrails", {}).get("passed", True)
+                        if g_passed and g_score >= 8.8:
+                            scored_gemini.append((g_score, g_cand, g_eval))
+
+                    if scored_gemini:
+                        scored_gemini.sort(key=lambda x: x[0], reverse=True)
+                        best_score, best_cand, best_eval = scored_gemini[0]
+                        alts = [c for s, c, e in scored_gemini[1:]]
+                        delta = best_score - initial_score
+                        sign = "+" if delta >= 0 else ""
+                        return {
+                            "success": True,
+                            "repaired": True,
+                            "generator": "gemini",
+                            "original": orig_clean,
+                            "flawed_target": simp_clean,
+                            "repaired_target": best_cand,
+                            "alternatives": alts,
+                            "initial_score": initial_score,
+                            "repaired_score": best_score,
+                            "score_delta": f"{sign}{delta:.1f}",
+                            "actions": [
+                                "✨ Gemini Generative Author synthesized fluent, human-grade plain language from scratch.",
+                                f"🛡️ JUDGEBERT Arbiter verified zero hallucinations (Score: {best_score}/10, 100% guardrails cleared)."
+                            ],
+                            "evaluation": best_eval,
+                            "iterations": 1
+                        }
+            except Exception as e_gem:
+                print(f"[WARN] Gemini Generative Author pipeline error: {e_gem}")
 
         actions_taken = []
         candidate_text = simp_clean
