@@ -1,10 +1,10 @@
 # ⚖️🌐 JUDGEBERT: Universal & Legal Meaning Preservation Evaluator
 
-An interactive neuro-symbolic platform for assessing semantic meaning preservation, factual faithfulness, and legal fidelity across **General Context (News, Science, Facts, Paraphrasing)** and **Legal & Contractual Clauses (FrJUDGE, ContractNLI, Insurance)** in **English**, **French**, and **Cross-Lingual (FR ↔ EN)** pairs.
+An interactive neuro-symbolic platform for assessing semantic meaning preservation, factual faithfulness, and legal fidelity across **General Context (News, Science, Facts, Paraphrasing)** and **Legal & Contractual Clauses (FrJUDGE, ContractNLI, Insurance)** in **English**, **French**, **Hindi**, and **Cross-Lingual (EN ↔ FR, EN ↔ HI, FR ↔ HI)** pairs.
 
 Based on the research paper:  
 **"JUDGEBERT: Assessing Legal Meaning Preservation Between Sentences"**  
-*Beauchemin, Albert-Rochette, Khoury, Déziel (EMNLP 2025)* — generalized with token-level Cross-Encoder NLI, Bidirectional Mutual Entailment ($A \iff B$), Syntactic Dependency Guardrails, and Closed-Loop Auto-Repair.
+*Beauchemin, Albert-Rochette, Khoury, Déziel (EMNLP 2025)* — generalized with token-level Cross-Encoder NLI, Bidirectional Mutual Entailment ($A \iff B$), Syntactic Dependency Guardrails, Multilingual Hindi Support, and Closed-Loop Auto-Repair.
 
 ---
 
@@ -37,7 +37,7 @@ Then open your browser at **[http://localhost:5000](http://localhost:5000)**.
 > If local fine-tuned weights are not generated, the engine will automatically rely on the base model fallback (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
 
 ### 3. Run Automated Regression Test Suite
-Verify all 17 end-to-end evaluation and closed-loop self-correction tests:
+Verify all 19 end-to-end evaluation, Hindi cross-lingual, and closed-loop self-correction tests:
 
 ```bash
 python verify_demo_server.py
@@ -107,12 +107,17 @@ JUDGEBERT/
 │   ├── released/
 │   │   └── FrJUDGE.jsonl     # Full FrJUDGE dataset (1,485 expert annotations)
 │   ├── monolingual_english/  # Stanford ContractNLI (English Legal)
-│   ├── cross_lingual/        # Meta XNLI (FR ↔ EN multilingual pairs)
+│   ├── cross_lingual/
+│   │   ├── xnli/             # Meta XNLI 1.0 (FR ↔ EN multilingual pairs)
+│   │   └── hindi/            # Hindi monolingual & Cross-Lingual (EN ↔ HI, FR ↔ HI) pairs
 │   └── corpus_coling/        # French simplification parallel corpora
+├── scripts/                  # Data extraction & evaluation utilities
+│   ├── extract_hindi_dataset.py  # Hindi dataset extraction from XNLI
+│   └── test_hindi_engine.py      # Hindi Devanagari validation script
 ├── finetune_judgebert_contrastive.py  # Contrastive fine-tuning pipeline
 ├── train_and_evaluate_multilingual.py # Evaluation & benchmarking script
 ├── download_and_setup_datasets.py     # Automated dataset downloader
-├── verify_demo_server.py     # 17-test end-to-end automated regression test suite
+├── verify_demo_server.py     # 19-test end-to-end automated regression test suite
 ├── run_demo.py               # One-click demo server launcher
 ├── requirements.txt          # Python dependencies
 ├── .gitignore                # Git ignore patterns
