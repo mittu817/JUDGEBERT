@@ -73,18 +73,35 @@ class JudgeBertEngine:
                 except Exception as e2:
                     print(f"[ERROR] No bi-encoder available: {e2}")
 
-        # 2. Load Joint Cross-Encoder NLI model (Token-level cross-attention)
+        # 2. Load Native Multilingual Cross-Encoder NLI model (mDeBERTa-v3 / RoBERTa)
         cross_encoder_candidates = [
+            "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7",
             "cross-encoder/nli-distilroberta-base",
             "cross-encoder/nli-deberta-v3-base",
         ]
+        self.cross_encoder_name = ""
         for c_name in cross_encoder_candidates:
             try:
                 self.cross_encoder = CrossEncoder(c_name, local_files_only=True)
-                print(f"[INFO] Loaded NLI Cross-Encoder: {c_name}")
+                self.cross_encoder_name = c_name
+                print(f"[INFO] Loaded Native Multilingual NLI Cross-Encoder: {c_name}")
                 break
             except Exception as e:
                 print(f"[DEBUG] Cross-Encoder {c_name} not loaded: {e}")
+
+        # Resolve dynamic label indices across different model architectures
+        self.nli_label_indices = {"contradiction": 0, "entailment": 1, "neutral": 2}
+        if self.cross_encoder and hasattr(self.cross_encoder.model, "config") and hasattr(self.cross_encoder.model.config, "id2label"):
+            id2label = self.cross_encoder.model.config.id2label
+            for idx, label_name in id2label.items():
+                lbl = str(label_name).lower()
+                if "entail" in lbl:
+                    self.nli_label_indices["entailment"] = int(idx)
+                elif "contra" in lbl:
+                    self.nli_label_indices["contradiction"] = int(idx)
+                elif "neut" in lbl:
+                    self.nli_label_indices["neutral"] = int(idx)
+            print(f"[INFO] Dynamic NLI Label Mapping: {self.nli_label_indices}")
 
     def _load_dataset(self):
         released_file = DATASTORE_DIR / "released" / "FrJUDGE.jsonl"
@@ -355,6 +372,29 @@ class JudgeBertEngine:
             t = re.sub(pat, rep, t, flags=re.IGNORECASE)
         return t
 
+    def _align_hindi_to_english_for_cross_encoder(self, text: str) -> str:
+        """
+        Lightweight fallback mapping for Indic / Hindi legal predicates
+        into English equivalents when running on an English-only Cross-Encoder.
+        """
+        t = text
+        replacements = [
+            (r"किराएदार को किराया देना होगा", "the tenant must pay rent"),
+            (r"किराएदार को किराया नहीं देना होगा", "the tenant does not have to pay rent"),
+            (r"भुगतान करना अनिवार्य है", "payment is mandatory"),
+            (r"भुगतान करना आवश्यक नहीं है", "payment is not required"),
+            (r"अनुमति नहीं है", "is not permitted"),
+            (r"अनुमति है", "is permitted"),
+            (r"बाध्य है", "is obligated"),
+            (r"बाध्य नहीं है", "is not obligated"),
+            (r"नहीं कर सकता", "cannot"),
+            (r"कर सकता है", "can"),
+            (r"छूट प्राप्त है", "is exempt"),
+        ]
+        for pat, rep in replacements:
+            t = re.sub(pat, rep, t)
+        return t
+
     def evaluate_pair(self, orig: str, simp: str, domain: str = "auto"):
         orig_clean = orig.strip()
         simp_clean = simp.strip()
@@ -422,29 +462,41 @@ class JudgeBertEngine:
         p_entail_r, p_neutral_r, p_contra_r = 0.5, 0.3, 0.2
         
         if self.cross_encoder:
-            # For cross-lingual or French, align to maximize Cross-Encoder cross-attention accuracy
+            # Check if current CrossEncoder is natively multilingual (e.g. mDeBERTa-v3 XNLI)
+            is_multilingual_ce = any(k in self.cross_encoder_name.lower() for k in ["mdeberta", "multilingual", "xnli"])
+
             c_orig = orig_clean
             c_simp = simp_clean
-            if lang_o == "fr":
-                c_orig = self._align_french_to_english_for_cross_encoder(orig_clean)
-            if lang_s == "fr":
-                c_simp = self._align_french_to_english_for_cross_encoder(simp_clean)
+            if not is_multilingual_ce:
+                # English-only model fallback: align non-English predicates
+                if lang_o == "fr":
+                    c_orig = self._align_french_to_english_for_cross_encoder(orig_clean)
+                elif lang_o == "hi":
+                    c_orig = self._align_hindi_to_english_for_cross_encoder(orig_clean)
+                if lang_s == "fr":
+                    c_simp = self._align_french_to_english_for_cross_encoder(simp_clean)
+                elif lang_s == "hi":
+                    c_simp = self._align_hindi_to_english_for_cross_encoder(simp_clean)
 
             try:
                 # Predict BOTH Forward (A -> B) and Reverse (B -> A)
                 logits_both = self.cross_encoder.predict([(c_orig, c_simp), (c_simp, c_orig)])
                 
+                idx_contra = self.nli_label_indices.get("contradiction", 0)
+                idx_entail = self.nli_label_indices.get("entailment", 1)
+                idx_neut = self.nli_label_indices.get("neutral", 2)
+
                 # Forward: Premise = Orig, Hypothesis = Simp (Fidelity: No contradictions introduced)
                 probs_f = np.exp(logits_both[0]) / np.sum(np.exp(logits_both[0]))
-                p_contra_f = float(probs_f[0])
-                p_entail_f = float(probs_f[1])
-                p_neutral_f = float(probs_f[2])
+                p_contra_f = float(probs_f[idx_contra])
+                p_entail_f = float(probs_f[idx_entail])
+                p_neutral_f = float(probs_f[idx_neut])
 
                 # Reverse: Premise = Simp, Hypothesis = Orig (Sufficiency: No critical legal obligations dropped)
                 probs_r = np.exp(logits_both[1]) / np.sum(np.exp(logits_both[1]))
-                p_contra_r = float(probs_r[0])
-                p_entail_r = float(probs_r[1])
-                p_neutral_r = float(probs_r[2])
+                p_contra_r = float(probs_r[idx_contra])
+                p_entail_r = float(probs_r[idx_entail])
+                p_neutral_r = float(probs_r[idx_neut])
             except Exception as e:
                 print(f"[WARN] Cross-Encoder bidirectional inference failed: {e}")
 
