@@ -120,26 +120,55 @@ class JudgeBertEngine:
                             continue
 
     def detect_lang(self, text: str) -> str:
-        # Check for Devanagari script (Hindi / Indic languages)
+        # 1. Check for Devanagari script (Hindi / Indic languages)
         if re.search(r"[\u0900-\u097F]", text):
             return "hi"
 
-        words = set([w.strip(".,;:?!'\"()[]{}").lower() for w in text.split()])
+        text_lower = text.lower()
+        
+        # 2. Check for characteristic French diacritics / elisions
+        french_char_patterns = r"[éèêëàâùûçôîïœæ]|(?:^|\s)(?:l\'|d\'|qu\'|n\'|j\'|c\'|s\'|m\'|t\')"
+        has_french_chars = bool(re.search(french_char_patterns, text_lower))
+
+        # 3. Clean word tokens
+        words = set([re.sub(r"^[^\w]+|[^\w]+$", "", w) for w in text_lower.split() if w.strip()])
+
         french_words = {
-            "le", "la", "les", "des", "du", "un", "une", "est", "et", "en", "pour", "dans",
-            "cette", "ce", "ces", "par", "qui", "que", "ne", "pas", "frais", "contrat",
-            "assuré", "assurance", "indemnité", "sauf", "doit", "police"
+            "le", "la", "les", "des", "du", "de", "un", "une", "est", "sont", "et", "en", "pour", "dans",
+            "par", "sur", "avec", "sans", "sous", "ce", "cet", "cette", "ces", "mon", "ma", "mes",
+            "son", "sa", "ses", "notre", "votre", "leur", "nous", "vous", "ils", "elles", "je", "tu",
+            "il", "elle", "on", "qui", "que", "quoi", "dont", "où", "mais", "donc", "or", "ni", "car",
+            "ne", "pas", "plus", "tout", "tous", "toute", "toutes", "être", "avoir", "faire", "doit",
+            "doivent", "frais", "contrat", "assuré", "assureur", "assurance", "sinistre", "indemnité",
+            "police", "garantie", "dommages", "avis", "délai", "sauf", "visé", "autre", "semblable",
+            "présente", "accueilli", "musée", "année", "dernière"
         }
+
         english_words = {
-            "the", "of", "and", "in", "to", "a", "is", "that", "for", "it", "as", "with",
-            "be", "by", "on", "not", "this", "are", "shall", "contract", "party", "agreement",
-            "receiving", "disclosing", "unless", "must", "covered"
+            "the", "of", "and", "in", "to", "a", "is", "that", "for", "it", "as", "with", "be", "by",
+            "on", "not", "this", "are", "shall", "contract", "party", "parties", "agreement",
+            "receiving", "disclosing", "unless", "must", "covered", "i", "you", "he", "she", "we",
+            "they", "me", "him", "her", "us", "them", "my", "your", "his", "our", "their", "love",
+            "family", "everyone", "all", "any", "can", "will", "would", "should", "have", "has", "had",
+            "do", "does", "did", "from", "at", "but", "if", "or", "so", "was", "were", "been",
+            "about", "into", "through", "during", "before", "after", "above", "below", "up", "down",
+            "out", "off", "over", "under", "here", "there", "when", "where", "why", "how", "who",
+            "which", "what", "more", "most", "some", "such", "no", "nor", "only", "own", "same",
+            "than", "too", "very", "just", "now", "people", "person", "time", "year", "good", "new"
         }
+
         fr_matches = len(words & french_words)
         en_matches = len(words & english_words)
-        if en_matches > fr_matches:
-            return "en"
-        return "fr"
+
+        # If explicit French accents/elisions are found AND French matches dominate or tie
+        if has_french_chars and fr_matches >= en_matches:
+            return "fr"
+
+        if fr_matches > en_matches:
+            return "fr"
+
+        # Default to English for Latin text
+        return "en"
 
     def compute_diff(self, orig: str, simp: str):
         tokens_orig = orig.split()
