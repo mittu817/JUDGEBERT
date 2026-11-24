@@ -370,14 +370,8 @@ class JudgeBertEngine:
         resolved_domain = gr_result["domain"]
         domain_tag = "Legal Context" if resolved_domain == "legal" else "General Context"
 
-        if lang_o == "en" and lang_s == "en":
-            mode_name = f"Monolingual English ({domain_tag} • RoBERTa NLI + ColBERT MaxSim)"
-        elif lang_o == "hi" and lang_s == "hi":
-            mode_name = f"Monolingual Hindi ({domain_tag} • ColBERT MaxSim Multi-Vector)"
-        elif lang_o != lang_s:
-            mode_name = f"Cross-Lingual ({lang_o.upper()} ↔ {lang_s.upper()} • {domain_tag} • ColBERT MaxSim)"
-        else:
-            mode_name = f"Monolingual French ({domain_tag} • ColBERT MaxSim Multi-Vector)"
+        # Single Unified Inbuilt Engine (Integrates General, Legal, Contractual, Deontic & Multilingual)
+        mode_name = f"Single Unified Inbuilt Engine ({lang_o.upper()}↔{lang_s.upper()} • {domain_tag})"
 
         # 2. Exact Match Sanity Check
         if orig_clean.lower() == simp_clean.lower():

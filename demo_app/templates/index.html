@@ -1042,14 +1042,12 @@
                     <div class="panel-header">
                         <div class="panel-title">
                             <span>⚡</span>
-                            <span>Evaluate Clause Pair (General & Legal)</span>
+                            <span>Evaluate Meaning Preservation</span>
                         </div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <select id="domainSelector" class="selector-pill" style="font-weight: 700; background: #ffffff;">
-                                <option value="auto">🌐 Automatic Domain Detection</option>
-                                <option value="general">🌍 General Context (News, Science, Facts)</option>
-                                <option value="legal">⚖️ Legal & Contractual Context</option>
-                            </select>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <div class="nav-badge-pill" style="font-weight: 700; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;">
+                                <span>⚡ Single Inbuilt Unified Mode</span>
+                            </div>
                             <select id="exampleSelector" class="selector-pill" onchange="loadSelectedExample()">
                                 <option value="">-- Load a Benchmark Example --</option>
                                 {% for ex in examples %}
@@ -1088,64 +1086,11 @@
                         </div>
                     </div>
 
-                    <!-- FEATURE 3: Multi-Level Simplification Slider Card -->
-                    <div class="multilevel-container">
-                        <div class="multilevel-header">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 1.1rem;">🎛️</span>
-                                <span style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Multi-Tier Plain Language Engine (4 Certified Grades)</span>
-                            </div>
-                            <button class="nav-badge-pill" id="genLevelsBtn" onclick="generateMultiLevels()" style="background: #f1f5f9; font-size: 0.8rem;">
-                                <span id="genLevelsSpinner" class="loading-spin" style="border-top-color: #0f172a;"></span>
-                                <span>✨ Generate 4 Tiers</span>
-                            </button>
-                        </div>
-
-                        <div class="level-pills-row">
-                            <div class="level-pill-card active" id="lvlCard1" onclick="selectLevel(1)">
-                                <span class="lvl-badge" style="color: #3b82f6;">Level 1</span>
-                                <div class="lvl-title">Conservative (B2)</div>
-                                <div class="lvl-desc">Legal precision, modern modals</div>
-                            </div>
-                            <div class="level-pill-card" id="lvlCard2" onclick="selectLevel(2)">
-                                <span class="lvl-badge" style="color: #10b981;">Level 2</span>
-                                <div class="lvl-title">Plain Language (B1)</div>
-                                <div class="lvl-desc">Clean professional standard</div>
-                            </div>
-                            <div class="level-pill-card" id="lvlCard3" onclick="selectLevel(3)">
-                                <span class="lvl-badge" style="color: #f59e0b;">Level 3</span>
-                                <div class="lvl-title">Layman (A2)</div>
-                                <div class="lvl-desc">Everyday direct vocabulary</div>
-                            </div>
-                            <div class="level-pill-card" id="lvlCard4" onclick="selectLevel(4)">
-                                <span class="lvl-badge" style="color: #8b5cf6;">Level 4</span>
-                                <div class="lvl-title">Executive Summary</div>
-                                <div class="lvl-desc">Structured conditions & bullets</div>
-                            </div>
-                        </div>
-
-                        <!-- Level Preview Box -->
-                        <div class="level-preview-box" id="levelPreviewBox">
-                            <div style="flex: 1;">
-                                <div style="font-size: 0.72rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 3px;" id="lvlPreviewHeader">Active Tier Preview:</div>
-                                <div id="lvlPreviewText" style="font-weight: 600; color: #0f172a;">
-                                    Click "Generate 4 Tiers" to preview certified plain-language simplifications of your clause.
-                                </div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span id="lvlScoreTag" class="badge-pill badge-pill-success" style="display: none;">Score: 9.8/10</span>
-                                <button class="btn-3d" id="applyLvlBtn" onclick="applyCurrentLevelToTarget()" style="padding: 6px 14px; font-size: 0.78rem; display: none;">
-                                    📥 Load Into Target
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px;">
                         <span id="categoryBadge" class="badge-pill badge-pill-info" style="display: none;">Category: Contractual terms</span>
                         <button class="btn-3d" id="evaluateBtn" onclick="runEvaluation()">
                             <div class="loading-spin" id="btnSpinner"></div>
-                            <span>⚡ Evaluate Meaning Preservation (Run 3D Arbiter)</span>
+                            <span>⚡ Evaluate Meaning Preservation</span>
                         </button>
                     </div>
                 </div>
@@ -1818,7 +1763,7 @@
                     body: JSON.stringify({ 
                         original: orig, 
                         simplification: simp,
-                        domain: document.getElementById('domainSelector').value
+                        domain: 'auto'
                     })
                 });
 
@@ -2038,73 +1983,10 @@
             }, 360);
         });
 
-        // --- FEATURE 3: Multi-Level Simplification Generation & Slider ---
-        async function generateMultiLevels() {
-            const orig = document.getElementById('origInput').value.trim();
-            if (!orig) {
-                alert("Please enter an original clause first.");
-                return;
-            }
-
-            const btn = document.getElementById('genLevelsBtn');
-            const spin = document.getElementById('genLevelsSpinner');
-            btn.disabled = true;
-            spin.style.display = 'inline-block';
-
-            try {
-                const response = await fetch('/api/simplify-levels', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        original: orig,
-                        domain: document.getElementById('domainSelector').value
-                    })
-                });
-
-                const data = await response.json();
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-
-                currentMultiLevels = data.levels || [];
-                selectLevel(1); // default to Level 1
-                document.getElementById('applyLvlBtn').style.display = 'inline-flex';
-                document.getElementById('lvlScoreTag').style.display = 'inline-block';
-
-            } catch (err) {
-                console.error(err);
-                alert("Error during multi-tier generation: " + err.message);
-            } finally {
-                btn.disabled = false;
-                spin.style.display = 'none';
-            }
-        }
-
-        function selectLevel(lvlId) {
-            selectedLevelId = lvlId;
-            document.querySelectorAll('.level-pill-card').forEach((card, idx) => {
-                if (idx + 1 === lvlId) card.classList.add('active');
-                else card.classList.remove('active');
-            });
-
-            if (!currentMultiLevels.length) return;
-            const lvl = currentMultiLevels.find(l => l.id === lvlId) || currentMultiLevels[0];
-
-            document.getElementById('lvlPreviewHeader').innerText = `Active Preview - ${lvl.title}:`;
-            document.getElementById('lvlPreviewText').innerText = lvl.text;
-            document.getElementById('lvlScoreTag').innerText = `Score: ${lvl.score.toFixed(1)}/10`;
-            document.getElementById('lvlScoreTag').className = `badge-pill ${lvl.score >= 8.5 ? 'badge-pill-success' : 'badge-pill-warning'}`;
-        }
-
-        function applyCurrentLevelToTarget() {
-            if (!currentMultiLevels.length) return;
-            const lvl = currentMultiLevels.find(l => l.id === selectedLevelId);
-            if (!lvl) return;
-
-            document.getElementById('simpInput').value = lvl.text;
-            runEvaluation();
-        }
+        // Multi-level functions disabled per user preference
+        async function generateMultiLevels() {}
+        function selectLevel(lvlId) {}
+        function applyCurrentLevelToTarget() {}
 
         // --- FEATURE 4: Audit Report & Certificate of Meaning Preservation ---
         function openAuditModal() {
@@ -2200,7 +2082,7 @@
         async function runAutoRepair() {
             const orig = document.getElementById('origInput').value.trim();
             const simp = document.getElementById('simpInput').value.trim();
-            const domain = document.getElementById('domainSelector').value;
+            const domain = 'auto';
 
             if (!orig || !simp) return;
 

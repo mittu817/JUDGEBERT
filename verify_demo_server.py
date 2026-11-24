@@ -8,10 +8,10 @@ def test_homepage():
     req = urllib.request.urlopen(f"{BASE_URL}/")
     html = req.read().decode("utf-8")
     assert req.status == 200
-    assert "domainSelector" in html
+    assert "Single Inbuilt Unified Mode" in html
     assert "nliCard" in html
     assert "Mutual Entailment" in html
-    print("✅ Homepage UI markup confirmed with Domain Selector and Bidirectional NLI card.")
+    print("✅ Homepage UI markup confirmed with Single Unified Inbuilt Engine and Bidirectional NLI card.")
 
 def test_examples_api():
     print("\n--- TEST 2: Benchmark Examples API ---")
