@@ -459,17 +459,30 @@ class JudgeBertEngine:
         # Blended Bidirectional NLI Score (65% Forward fidelity + 35% Reverse sufficiency)
         cross_encoder_score = 0.65 * score_f + 0.35 * score_r
 
-        # Check if neural contradiction from off-the-shelf MNLI is an imperative/modal false alarm:
-        # If guardrails fully passed with 0 alerts and semantic similarity is high (>= 0.65),
-        # a high neural contradiction from MNLI is due to imperative verbs (e.g. "Take a pill") or lexical divergence.
-        is_nli_false_alarm = (gr_result["passed"] and not gr_result["alerts"] and semantic_sim >= 0.65 and p_contra_f > 0.50)
+        # 4. Neural Contradiction Detection & False-Alarm Filtering
+        # If the Cross-Encoder is strongly confident of contradiction (p_contra_f >= 0.75 or p_contra_f >= 0.55 with negligible entailment),
+        # flag it as a genuine contradiction regardless of lexical overlap.
+        if p_contra_f >= 0.75 or (p_contra_f >= 0.55 and p_entail_f < 0.15):
+            if not gr_result["is_severe_contradiction"]:
+                gr_result["alerts"].append({
+                    "type": "neural_contradiction",
+                    "level": "danger",
+                    "message": "Direct Meaning Inversion : The simplified text contradicts the conditions, rights, or obligations of the original.",
+                    "penalty": 9.0
+                })
+                gr_result["total_penalty"] += 9.0
+                gr_result["passed"] = False
+                gr_result["is_severe_contradiction"] = True
+
+        # Imperative/stylistic divergence is only considered when forward entailment is substantial (>= 0.35) and contradiction is not dominant (< 0.70)
+        is_nli_false_alarm = (gr_result["passed"] and not gr_result["alerts"] and semantic_sim >= 0.65 and p_contra_f > 0.40 and p_contra_f < 0.70 and p_entail_f >= 0.30)
         if is_nli_false_alarm:
             score_f = (10.0 * p_entail_f) + (8.5 * p_neutral_f) + (7.0 * p_contra_f)
             score_r = (10.0 * p_entail_r) + (8.5 * p_neutral_r) + (7.0 * p_contra_r)
             cross_encoder_score = 0.65 * score_f + 0.35 * score_r
 
         # Determine Bidirectional NLI Verdict
-        if gr_result["is_severe_contradiction"] or (p_contra_f > 0.75 and semantic_sim < 0.55) or (p_contra_f > 0.85 and gr_result["total_penalty"] > 0):
+        if gr_result["is_severe_contradiction"] or p_contra_f >= 0.70 or (p_contra_f >= 0.55 and p_entail_f < 0.15):
             nli_verdict = "Contradiction (Incompatible or Inverted Meaning)"
         elif is_nli_false_alarm:
             nli_verdict = "Informal / Plain-Language Simplification (Equivalent Semantic Meaning)"
@@ -510,8 +523,8 @@ class JudgeBertEngine:
 
         # Check for genuine contradiction:
         # A) Guardrails flagged severe contradiction (symbolic certainty: actor swap, negation flip, date/number change, causal reversal)
-        # B) Neural forward contradiction is high AND semantic similarity is low or guardrail penalty triggered
-        is_true_contradiction = gr_result["is_severe_contradiction"] or (p_contra_f > 0.75 and semantic_sim < 0.55) or (p_contra_f > 0.85 and gr_result["total_penalty"] > 0)
+        # B) Neural contradiction is dominant (p_contra_f >= 0.70)
+        is_true_contradiction = gr_result["is_severe_contradiction"] or p_contra_f >= 0.70
 
         # Mode-specific synthesis
         if is_true_contradiction:

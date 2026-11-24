@@ -26,11 +26,16 @@ class LegalGuardrails:
         r"\bshall not\b", r"\bmust not\b", r"\bmay not\b", r"\bcannot\b",
         r"\bprohibited from\b", r"\bforbidden to\b", r"\bnot permitted to\b",
         r"\bagrees? not to\b", r"\bundertakes? not to\b", r"\bshould not be granted\b",
-        r"\bshall not be granted\b", r"\bdenied\b", r"\bdismissed\b", r"\bquashed\b"
+        r"\bshall not be granted\b", r"\bdenied\b", r"\bdismissed\b", r"\bquashed\b",
+        r"\bnot to\b", r"\brefrain from\b", r"\bno right to\b", r"\bstrictly prohibited\b",
+        r"\bwill not\b", r"\bshall in no event\b", r"\bnot allowed to\b"
     ]
     EXEMPTION_EN = [
         r"\bnot required to\b", r"\bis not obligated to\b", r"\bunder no obligation\b",
-        r"\bexempt from\b", r"\brelieved of\b", r"\bwithout obligation\b"
+        r"\bexempt from\b", r"\brelieved of\b", r"\bwithout obligation\b",
+        r"\bcan\b", r"\bmay\b", r"\bis permitted to\b", r"\bare permitted to\b",
+        r"\bis allowed to\b", r"\bare allowed to\b", r"\bhas the right to\b",
+        r"\bhave the right to\b", r"\bentitled to\b", r"\bpermitted to\b"
     ]
 
     OBLIGATION_FR = [

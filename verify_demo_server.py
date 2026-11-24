@@ -185,6 +185,16 @@ if __name__ == "__main__":
     assert l2["score"] <= 1.0
     assert any("Inversion des parties" in a["message"] for a in l2["guardrails"]["alerts"])
 
+    # 7b. Reverse Engineering Prohibition Reversal (Forbidden -> Permitted)
+    l2b = test_evaluation(
+        "[Legal Contract] Reverse Engineering Prohibition Flip (Forbidden -> Permitted)",
+        "The Receiving Parties undertake and agree: f) Not to alter, modify, disassemble, reverse engineer or decompile any Confidential Information.",
+        "Receiving Party can reverse engineer any objects which embody Disclosing Party's Confidential Information."
+    )
+    assert l2b["score"] <= 1.0
+    assert l2b["guardrails"]["passed"] is False
+    assert any("Prohibition Reversal" in a["message"] or "Direct Meaning Inversion" in a["message"] for a in l2b["guardrails"]["alerts"])
+
     # 8. English Legal Flipped Obligation
     l3 = test_evaluation(
         "[Legal Contract] Flipped Obligation (Shall Pay vs Not Required)",
@@ -291,6 +301,6 @@ if __name__ == "__main__":
     assert r8["repaired_target"].strip().lower() != "Employees are strictly prohibited from sharing customer passwords under any circumstances.".lower()
 
     print("\n" + "="*80)
-    print(" ALL 21 EVALUATION & CLOSED-LOOP AUTO-REPAIR TESTS PASSED WITH 100% ACCURACY! ")
+    print(" ALL 22 EVALUATION & CLOSED-LOOP AUTO-REPAIR TESTS PASSED WITH 100% ACCURACY! ")
     print("="*80)
 

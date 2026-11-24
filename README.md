@@ -37,7 +37,7 @@ Then open your browser at **[http://localhost:5000](http://localhost:5000)**.
 > If local fine-tuned weights are not generated, the engine will automatically rely on the base model fallback (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
 
 ### 3. Run Automated Regression Test Suite
-Verify all 21 end-to-end evaluation, Hindi cross-lingual, MILDSum Indian court judgment, and closed-loop self-correction tests:
+Verify all 22 end-to-end evaluation, Hindi cross-lingual, MILDSum Indian court judgment, and closed-loop self-correction tests:
 
 ```bash
 python verify_demo_server.py
