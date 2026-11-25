@@ -776,7 +776,7 @@ class JudgeBertEngine:
             gr_result["passed"] = False
 
         # Check for Over-simplification / Under-specification via Reverse Entailment
-        # Strictly enforce on legal clauses or when forward entailment is not already high (so concise general summaries aren't punished)
+        # Strictly enforce on legal clauses when forward entailment is weak; apply mild nuance deduction when forward entailment is already strong
         compression = (1.0 - (len(simp_clean.split()) / max(len(orig_clean.split()), 1)))
         if (
             compression > 0.55
@@ -784,14 +784,26 @@ class JudgeBertEngine:
             and p_neutral_r > 0.85
             and (resolved_domain == "legal" or p_entail_f < 0.70)
         ):
+            is_entailed_subclaim = (
+                resolved_domain == "legal"
+                and p_entail_f >= 0.60
+                and p_contra_f < 0.05
+                and not gr_result["alerts"]
+            )
+            info_pen = 1.0 if is_entailed_subclaim else 2.5
             gr_result["alerts"].append({
                 "type": "information_loss",
                 "level": "warning",
-                "message": "Substantial omission: Simplification drops critical conditions to entail the original (Low Reverse Entailment).",
-                "penalty": 2.5
+                "message": (
+                    "Partial clause scope: Target states one entailed legal point while omitting secondary context."
+                    if is_entailed_subclaim
+                    else "Substantial omission: Simplification drops critical conditions to entail the original (Low Reverse Entailment)."
+                ),
+                "penalty": info_pen
             })
-            gr_result["total_penalty"] += 2.5
-            gr_result["passed"] = False
+            gr_result["total_penalty"] += info_pen
+            if not is_entailed_subclaim:
+                gr_result["passed"] = False
 
         # 5. Score Synthesis
         # Recalibrated transfer function: standard transformer embeddings have strong paraphrase semantic preservation in the 0.55-1.00 range

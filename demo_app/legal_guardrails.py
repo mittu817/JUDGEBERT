@@ -23,24 +23,31 @@ class LegalGuardrails:
         r"\bmandated\b", r"\bunder an obligation\b"
     ]
     PROHIBITION_EN = [
-        r"\bshall not\b", r"\bmust not\b", r"\bmay not\b", r"\bcannot\b",
+        r"\bshall not(?!\s+apply\b)\b", r"\bmust not\b", r"\bmay not\b", r"\bcannot\b",
         r"\bprohibited from\b", r"\bforbidden to\b", r"\bnot permitted to\b",
         r"\bagrees? not to\b", r"\bundertakes? not to\b", r"\bshould not be granted\b",
         r"\bshall not be granted\b", r"\bdenied\b", r"\bdismissed\b", r"\bquashed\b",
         r"\bnot to\b", r"\brefrain from\b", r"\bno right to\b", r"\bstrictly prohibited\b",
-        r"\bwill not\b", r"\bshall in no event\b", r"\bnot allowed to\b"
+        r"\bwill not(?!\s+apply\b)\b", r"\bshall in no event\b", r"\bnot allowed to\b"
     ]
     EXEMPTION_EN = [
         r"\bnot required to\b", r"\bis not obligated to\b", r"\bunder no obligation\b",
         r"\bexempt from\b", r"\brelieved of\b", r"\bwithout obligation\b",
+        r"\b(?:will|shall|do|does)\s+not\s+apply\b", r"\bnot applicable\b",
         r"\bcan\b", r"\bmay\b", r"\bis permitted to\b", r"\bare permitted to\b",
         r"\bis allowed to\b", r"\bare allowed to\b", r"\bhas the right to\b",
         r"\bhave the right to\b", r"\bentitled to\b", r"\bpermitted to\b"
     ]
+    EXPLICIT_CANCEL_EN = [
+        r"\bnot required to\b", r"\bis not obligated to\b", r"\bare not obligated to\b",
+        r"\bunder no obligation\b", r"\bexempt from\b", r"\brelieved of\b",
+        r"\bwithout obligation\b", r"\b(?:will|shall|do|does)\s+not\s+apply\b"
+    ]
 
     OBLIGATION_FR = [
         r"\bdoit\b", r"\bdoivent\b", r"\best tenu de\b", r"\bsont tenus de\b",
-        r"\bs'engage à\b", r"\ba l'obligation de\b", r"\bobligatoirement\b"
+        r"\bs'engage à\b", r"\ba l'obligation de\b", r"\bobligatoirement\b",
+        r"\bimpose\b", r"\brequiert\b", r"\bexige\b", r"\best nécessaire\b"
     ]
     PROHIBITION_FR = [
         r"\bne doit pas\b", r"\bne doivent pas\b", r"\bne peut pas\b", r"\bne peuvent pas\b",
@@ -70,11 +77,12 @@ class LegalGuardrails:
     EXCEPTION_EN = [
         "unless", "except as provided", "except when", "except in the case",
         "provided that", "subject to", "with the exception of", "saving and excepting",
-        "save and except", "save that"
+        "save and except", "save that", "only if", "the exception is", "exception"
     ]
     EXCEPTION_FR = [
-        "sauf si", "sauf en cas", "sauf", "à l'exception de", "à moins que",
-        "sous réserve de", "hormis", "excepté", "pourvu que"
+        "sauf si", "sauf en cas", "sauf", "à l'exception de", "l'exception", "exception",
+        "à moins que", "sous réserve de", "hormis", "excepté", "pourvu que",
+        "uniquement si", "seulement si"
     ]
     EXCEPTION_HI = [
         "सिवाय", "जब तक कि", "बशर्ते कि", "को छोड़कर", "यदि नहीं"
@@ -269,6 +277,10 @@ class LegalGuardrails:
         is_proh2 = has_proh_en2 or has_proh_fr2 or has_proh_hi2
         is_exemp2 = has_exemp_en2 or has_exemp_fr2 or has_exemp_hi2
 
+        # Explicit cancellation markers (distinguish "not required to" from permissive "may"/"can")
+        has_cancel_en2 = any(re.search(p, simp_lower) for p in cls.EXPLICIT_CANCEL_EN)
+        is_explicit_cancel2 = has_cancel_en2 or has_exemp_fr2 or has_exemp_hi2
+
         # 1. Direct flip: Positive Obligation -> Prohibition
         if (is_ob1 and not is_proh1) and is_proh2:
             return True, "Obligation Reversal : A contractual obligation became a prohibition.", 9.0
@@ -277,8 +289,8 @@ class LegalGuardrails:
         if is_proh1 and (is_ob2 or is_exemp2) and not is_proh2:
             return True, "Prohibition Reversal : A formal prohibition became an obligation or permission.", 9.0
 
-        # 3. Obligation -> Exemption
-        if (is_ob1 and not is_exemp1) and is_exemp2:
+        # 3. Obligation -> Explicit Exemption / Non-Requirement
+        if (is_ob1 and not is_exemp1) and is_explicit_cancel2:
             return True, "Obligation Cancellation (Annulation d'obligation) : The contractual obligation was removed or made optional.", 8.5
 
         # 4. Coverage vs Exclusion
@@ -291,6 +303,12 @@ class LegalGuardrails:
             return True, "Coverage Inversion : An exclusion clause was turned into positive coverage.", 9.0
         if (cov_orig and not excl_orig) and excl_simp:
             return True, "Coverage Inversion : A contractual coverage was turned into an exclusion.", 9.0
+        if excl_orig and excl_simp:
+            return False, "", 0.0
+
+        # If both are non-applicable/exemptions (e.g. "will not apply" -> "may"), polarity is preserved
+        if is_exemp1 and is_exemp2 and not is_proh1 and not is_proh2:
+            return False, "", 0.0
 
         # If both are established positive obligations with no prohibitions, polarity is preserved
         if (is_ob1 and not is_proh1 and not is_exemp1) and (is_ob2 and not is_proh2 and not is_exemp2):
@@ -300,17 +318,24 @@ class LegalGuardrails:
         if is_proh1 and is_proh2:
             return False, "", 0.0
 
-        # 5. Generic Negation mismatch on key predicates (excluding adverbial prepositions like without/sans)
+        # 5. Generic Negation mismatch on key predicates (excluding benign idioms like "ne change pas" or "will not apply")
+        clean_o_neg = re.sub(r"\b(?:ne\s+changent?\s+pas|ne\s+modifient?\s+pas|(?:will|shall|do|does)\s+not\s+apply)\b", " ", orig_lower)
+        clean_s_neg = re.sub(r"\b(?:ne\s+changent?\s+pas|ne\s+modifient?\s+pas|(?:will|shall|do|does)\s+not\s+apply)\b", " ", simp_lower)
         neg_en = {'not', 'never', 'neither', 'nor', 'cannot', "can't", "won't", "prohibited", "forbidden", "banned"}
         neg_fr = {'ne', 'pas', 'aucun', 'aucune', 'nul', 'nulle', 'jamais', 'interdit', 'interdite', 'interdits', 'interdites', 'prohibé', 'défendu'}
         neg_hi = {'नहीं', 'मत', 'ना', 'वर्जित', 'मनाही', 'निषेध', 'प्रतिबंधित'}
-        w1 = set(orig_lower.split()) | set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', orig_lower))
-        w2 = set(simp_lower.split()) | set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', simp_lower))
+        w1 = set(clean_o_neg.split()) | set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', clean_o_neg))
+        w2 = set(clean_s_neg.split()) | set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', clean_s_neg))
         has_neg1 = bool(w1 & (neg_en | neg_fr | neg_hi))
         has_neg2 = bool(w2 & (neg_en | neg_fr | neg_hi))
 
-        if has_neg1 != has_neg2 and ((is_ob1 and not is_proh1) or (is_ob2 and not is_proh2) or excl_orig or excl_simp):
-            return True, "Polarity Inversion : Conflicting negation detected in core legal obligation.", 8.5
+        # Ignore idiomatic phrasing like "indépendamment de" rewritten as "ne doit pas être lié"
+        has_excl_idiom1 = any(m in orig_lower for m in ["indépendamment de", "sans égard", "regardless of", "independent of"])
+        has_excl_idiom2 = any(m in simp_lower for m in ["indépendamment de", "sans égard", "regardless of", "independent of"])
+
+        if has_neg1 != has_neg2 and not (has_excl_idiom1 and has_neg2) and not (has_excl_idiom2 and has_neg1):
+            if ((is_ob1 and not is_proh1) or (is_ob2 and not is_proh2) or excl_orig or excl_simp):
+                return True, "Polarity Inversion : Conflicting negation detected in core legal obligation.", 8.5
 
         return False, "", 0.0
 
@@ -468,26 +493,48 @@ class LegalGuardrails:
     @classmethod
     def extract_named_entities(cls, text: str) -> List[str]:
         """
-        Extracts proper nouns and named entities (e.g. Apple, NeXT, Paris, NASA).
+        Extracts genuine proper nouns and named actors (e.g. Apple, NeXT, Paris, NASA),
+        filtering out clause headers, sentence-initial words, pronouns, and generic legal nouns.
         """
-        # Words with capital letters not at the strict start of a sentence
-        tokens = text.split()
+        common_stops = {
+            "the", "this", "that", "these", "those", "each", "every", "all", "none",
+            "neither", "either", "shall", "must", "with", "from", "into", "subdivision",
+            "section", "article", "clause", "chapter", "chapitre", "avenant",
+            "agreement", "contract", "party", "parties", "partie", "disclosing", "receiving",
+            "confidential", "information", "return", "analyses", "representatives",
+            "transaction", "recipient", "discloser", "obligation", "obligations",
+            "exception", "notwithstanding", "however", "therefore", "moreover",
+            "whereas", "hereby", "thereof", "si", "il", "elle", "ils", "elles",
+            "cela", "ceci", "cette", "cet", "ces", "les", "des", "du", "de", "la", "le",
+            "toutes", "tous", "autres", "ainsi", "mais", "donc", "car", "lorsque",
+            "lorsqu'une", "lorsqu’une", "quand", "assureur", "assuré", "locataire",
+            "hospital", "court", "high", "supreme", "government", "covid", "covid-19",
+        }
+        matches = list(re.finditer(r"\S+", text))
         entities = []
-        for i, tok in enumerate(tokens):
-            clean = tok.strip(".,;:?!'\"()[]{}")
-            if not clean:
-                continue
-            # If capitalized and either not first word or title-cased acronym/special entity
-            if clean[0].isupper() and (i > 0 or clean.isupper()):
-                # Exclude common sentence starters and common modals
-                common_stops = {
-                    "the", "this", "that", "these", "those", "each", "every", "all", "none",
-                    "neither", "either", "shall", "must", "with", "from", "into", "subdivision",
-                    "section", "article", "clause", "agreement", "contract", "party", "parties",
-                    "partie", "disclosing", "receiving"
-                }
-                if clean.lower() not in common_stops:
-                    entities.append(clean)
+        prev_ended_sentence = True
+
+        for idx, m in enumerate(matches):
+            raw_tok = m.group(0)
+            clean = raw_tok.strip(".,;:?!'\"“”()[]{}")
+            # Strip trailing English possessives and leading French elided articles
+            norm = re.sub(r"^(?:l['’]|d['’]|s['’]|qu['’])", "", clean, flags=re.IGNORECASE)
+            norm = re.sub(r"['’]s$", "", norm)
+
+            is_all_caps = norm.isupper() and len(norm) >= 2 and norm.isalpha()
+            is_valid_entity = (
+                len(norm) >= 2
+                and norm[0].isupper()
+                and any(ch.isalpha() for ch in norm)
+                and (not prev_ended_sentence or is_all_caps)
+                and norm.lower() not in common_stops
+                and clean.lower() not in common_stops
+            )
+            if is_valid_entity:
+                entities.append(norm)
+
+            prev_ended_sentence = bool(re.search(r"[.:;?!\"”]$", raw_tok))
+
         return list(dict.fromkeys(entities))
 
     @classmethod
@@ -496,6 +543,10 @@ class LegalGuardrails:
         Detects general Subject-Object / Actor inversion for proper entities:
         e.g., 'Apple acquired NeXT' -> 'NeXT acquired Apple'.
         """
+        # Cross-script translations (e.g. EN <-> HI) only share stray acronyms/abbreviations, not full actor structure
+        if bool(re.search(r"[\u0900-\u097F]", orig)) != bool(re.search(r"[\u0900-\u097F]", simp)):
+            return False, "", 0.0
+
         ent_orig = cls.extract_named_entities(orig)
         ent_simp = cls.extract_named_entities(simp)
 
