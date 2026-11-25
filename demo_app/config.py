@@ -18,3 +18,9 @@ def get_gemini_api_key() -> str:
 def is_gemini_enabled() -> bool:
     """Checks whether the Gemini Generative Author is configured in backend."""
     return bool(get_gemini_api_key())
+
+
+def is_privacy_masking_enabled() -> bool:
+    """Checks whether local PII / sensitive entity masking before cloud LLM calls is enabled."""
+    val = os.environ.get("PRIVACY_MASKING", "true").strip().lower()
+    return val not in ("0", "false", "no", "off")

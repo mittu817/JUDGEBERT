@@ -549,6 +549,11 @@ class LegalGuardrails:
             "prohibit", "forbidden", "interdit", "confidential", "tenant", "landlord",
             "avenant", "assur", "sinistre", "indemnité", "subrogation", "résiliation",
             "bailleur", "preneur", "contractuel", "exclut la garantie", "dispositions", "code civil",
+            # Legal Latin Maxims & Terms
+            "force majeure", "prima facie", "bona fide", "pro rata", "mutatis mutandis",
+            "res judicata", "inter alia", "de facto", "de jure", "ipso facto", "status quo",
+            "ad hoc", "consensus ad idem", "ultra vires", "quid pro quo", "habeas corpus",
+            "mens rea", "caveat emptor", "in camera",
             # Hindi Legal & Contractual Markers
             "मनाही", "वर्जित", "प्रतिबंधित", "किराया", "अनुबंध", "शर्त", "दायित्व", "बाध्य",
             "अधिकार", "बीमा", "हर्जाना", "उल्लंघन", "गोपनीय", "कर्मचारी", "किराएदार",

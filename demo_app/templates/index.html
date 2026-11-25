@@ -935,7 +935,7 @@
 
                 <div class="nav-pill-group">
                     <button class="pill-tab active" id="tabBtnEval" onclick="switchTab('evaluator')"><span>●</span> Live 3D Arbiter</button>
-                    <button class="pill-tab" id="tabBtnCorpus" onclick="switchTab('explorer')">📚 FrJUDGE Corpus</button>
+                    <button class="pill-tab" id="tabBtnCorpus" onclick="switchTab('explorer')">📚 Multilingual Corpus</button>
                     <button class="pill-tab" id="tabBtnPaper" onclick="switchTab('paper')">📄 EMNLP Paper</button>
                 </div>
 
@@ -1070,21 +1070,32 @@
                         <div class="input-card">
                             <div class="input-label">
                                 <span>📜 Source Sentence or Clause (Original)</span>
-                                <span style="font-size: 0.72rem; color: var(--text-muted);">Source</span>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span id="origFileBadge" class="badge-pill badge-pill-info" style="display: none; font-size: 0.68rem;"></span>
+                                    <input type="file" id="origFileInput" accept=".txt,.pdf,.docx,.md" style="display: none;" onchange="handleDocFileUpload(event, 'origInput', 'origFileBadge')">
+                                    <button type="button" class="nav-badge-pill" onclick="document.getElementById('origFileInput').click()" style="padding: 3px 10px; font-size: 0.72rem; font-weight: 700;" title="Upload .txt, .pdf, or .docx document">
+                                        📁 Upload Document
+                                    </button>
+                                </div>
                             </div>
-                            <textarea id="origInput" class="clause-textarea" placeholder="Enter complex source sentence (general text, insurance policy, NDA, or rental clause)..."></textarea>
+                            <textarea id="origInput" class="clause-textarea" placeholder="Enter source text, paste a full multi-paragraph contract, or drop/upload a .txt / .pdf / .docx file..."></textarea>
                         </div>
 
                         <!-- Target Simplification Input with FEATURE 2: Live "As-You-Type" Scoring -->
                         <div class="input-card">
                             <div class="input-label">
                                 <span>✨ Target Simplification (AI or User)</span>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                     <span id="liveStatusPulse" style="display: none; font-size: 0.72rem; color: #0284c7; font-weight: 700;">⚡ Live analyzing...</span>
                                     <span id="liveScoreBadge" class="badge-pill badge-pill-info" style="display: none; font-size: 0.72rem;">Live: --</span>
+                                    <span id="simpFileBadge" class="badge-pill badge-pill-info" style="display: none; font-size: 0.68rem;"></span>
+                                    <input type="file" id="simpFileInput" accept=".txt,.pdf,.docx,.md" style="display: none;" onchange="handleDocFileUpload(event, 'simpInput', 'simpFileBadge')">
+                                    <button type="button" class="nav-badge-pill" onclick="document.getElementById('simpFileInput').click()" style="padding: 3px 10px; font-size: 0.72rem; font-weight: 700;" title="Upload simplified .txt, .pdf, or .docx document">
+                                        📁 Upload Document
+                                    </button>
                                 </div>
                             </div>
-                            <textarea id="simpInput" class="clause-textarea" placeholder="Enter simplified version... (Real-time live evaluation as you type)"></textarea>
+                            <textarea id="simpInput" class="clause-textarea" placeholder="Enter simplified version, or paste/upload a full simplified document (.txt, .pdf, .docx)..."></textarea>
                             <div id="liveWarningBar" style="display: none; margin-top: 6px; font-size: 0.75rem; color: #991b1b; background: #fee2e2; padding: 4px 10px; border-radius: 8px; font-weight: 600;">
                             </div>
                         </div>
@@ -1121,12 +1132,18 @@
                                 <div style="font-size: 0.70rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-top: 4px;">Detected Category</div>
                                 <div id="predictedCategory" style="font-size: 0.84rem; font-weight: 700; color: #334155;">--</div>
                             </div>
-                            <!-- FEATURE 4: Audit Export Buttons -->
-                            <div style="display: flex; gap: 8px; margin-top: 4px;">
-                                <button class="nav-badge-pill" onclick="openAuditModal()" style="font-size: 0.78rem; font-weight: 700; color: #0f172a;">
-                                    📄 Export Certificate (PDF)
+                            <!-- FEATURE 4: Audit & Document Export Buttons -->
+                            <div style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="nav-badge-pill" onclick="downloadExportedDoc('docx', 'target')" style="font-size: 0.76rem; font-weight: 700; color: #0369a1;">
+                                    📥 Download .DOCX
                                 </button>
-                                <button class="nav-badge-pill" onclick="exportAuditJSON()" style="font-size: 0.78rem;">
+                                <button class="nav-badge-pill" onclick="downloadExportedDoc('pdf', 'target')" style="font-size: 0.76rem; font-weight: 700; color: #0369a1;">
+                                    📥 Download .PDF
+                                </button>
+                                <button class="nav-badge-pill" onclick="openAuditModal()" style="font-size: 0.76rem; font-weight: 700; color: #0f172a;">
+                                    📄 Export Certificate
+                                </button>
+                                <button class="nav-badge-pill" onclick="exportAuditJSON()" style="font-size: 0.76rem;">
                                     💾 Export JSON
                                 </button>
                             </div>
@@ -1142,28 +1159,69 @@
                         </div>
                     </div>
 
+                    <!-- Whole-Document Clause Audit & Coreference Memory Panel -->
+                    <div id="documentAuditPanel" class="workspace-panel" style="display: none; padding: 20px; margin-bottom: 20px; background: #ffffff; border: 1.5px solid #cbd5e1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.25rem;">📄</span>
+                                <span style="font-weight: 800; font-size: 1.02rem; color: #0f172a;">Whole-Document Clause Audit & Coreference Memory</span>
+                            </div>
+                            <div id="docSummaryBadges" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                        </div>
+
+                        <!-- Resolved Pronouns & Defined Terms Strip -->
+                        <div id="docMemoryBox" style="display: none; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #0369a1;">
+                            <strong>🧠 Document Memory Active (Cross-Clause Resolutions):</strong>
+                            <span id="docMemoryList" style="margin-left: 6px;"></span>
+                        </div>
+
+                        <!-- Per-Clause Scorecard List -->
+                        <div id="docClauseList" style="display: flex; flex-direction: column; gap: 12px;"></div>
+
+                        <!-- Whole-Document Download Footer -->
+                        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                            <button class="nav-badge-pill" onclick="downloadExportedDoc('docx', 'target')" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 0.80rem;">
+                                📥 Download Document as .DOCX
+                            </button>
+                            <button class="nav-badge-pill" onclick="downloadExportedDoc('pdf', 'target')" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 0.80rem;">
+                                📥 Download Document as .PDF
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Closed-Loop Auto-Repair Banner (Self-Correction Arbiter) -->
                     <div id="repairCtaContainer" style="display: none;">
-                        <div class="repair-banner">
+                        <div class="repair-banner" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
                             <div>
                                 <div style="font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
-                                    <span>⚡ Closed-Loop Auto-Repair (Self-Correction)</span>
+                                    <span>⚡ Closed-Loop Auto-Repair & Multilingual Simplifier</span>
                                     <span class="badge-pill" style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-size: 0.7rem;">Active Loop</span>
                                 </div>
-                                <p style="font-size: 0.88rem; color: #c7d2fe; margin-top: 4px; max-width: 680px; line-height: 1.45;">
-                                    Semantic alterations were diagnosed. The arbiter can automatically correct entities, dates, conditions, or polarities in a closed loop until verification reaches ≥ 9.0/10.
+                                <p style="font-size: 0.88rem; color: #c7d2fe; margin-top: 4px; max-width: 660px; line-height: 1.45;">
+                                    Diagnose semantic alterations or generate certified plain-language simplifications in your target language (English, Hindi, or French) with closed-loop verification ≥ 9.0/10.
                                 </p>
                             </div>
-                            <button class="btn-3d" id="repairBtn" onclick="runAutoRepair()" style="background: #38bdf8; color: #0f172a; font-weight: 800;">
-                                <div class="loading-spin" id="repairSpinner" style="display: none; border-top-color: #0f172a;"></div>
-                                <span>🛠️ Auto-Repair Meaning (Closed Loop)</span>
-                            </button>
+                            <div style="display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label for="repairLangSelector" style="font-size: 0.70rem; color: #bae6fd; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px;">Target Language:</label>
+                                    <select id="repairLangSelector" style="background: #0f172a; color: #ffffff; border: 1.5px solid #38bdf8; border-radius: 10px; padding: 7px 12px; font-size: 0.86rem; font-weight: 700; cursor: pointer; outline: none;">
+                                        <option value="auto">🌐 Same as Input (Auto)</option>
+                                        <option value="en">🇬🇧 English (Plain English)</option>
+                                        <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+                                        <option value="fr">🇫🇷 Français (French)</option>
+                                    </select>
+                                </div>
+                                <button class="btn-3d" id="repairBtn" onclick="runAutoRepair()" style="background: #38bdf8; color: #0f172a; font-weight: 800; height: 38px;">
+                                    <div class="loading-spin" id="repairSpinner" style="display: none; border-top-color: #0f172a;"></div>
+                                    <span>🛠️ Auto-Repair Meaning</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Repaired Result Card (Fidelity Verified) -->
                     <div id="repairResultCard" class="repair-fixed-card" style="display: none;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-size: 1.6rem;">✅</span>
                                 <div>
@@ -1180,13 +1238,27 @@
                             </div>
                         </div>
 
+                        <!-- Language Indicator & One-Click Multi-Language Re-generation -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 12px; padding: 8px 14px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #0369a1; display: flex; align-items: center; gap: 8px;">
+                                <span>🌐 Target Simplification Language:</span>
+                                <span id="currentRepairLangBadge" class="badge-pill" style="background: #0284c7; color: #fff; font-size: 0.78rem;">English</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.76rem; color: #0369a1; font-weight: 700; text-transform: uppercase;">Switch Language:</span>
+                                <button class="nav-badge-pill" onclick="switchRepairLang('en')" style="font-size: 0.76rem; padding: 4px 10px;">🇬🇧 English</button>
+                                <button class="nav-badge-pill" onclick="switchRepairLang('hi')" style="font-size: 0.76rem; padding: 4px 10px;">🇮🇳 हिन्दी (Hindi)</button>
+                                <button class="nav-badge-pill" onclick="switchRepairLang('fr')" style="font-size: 0.76rem; padding: 4px 10px;">🇫🇷 Français</button>
+                            </div>
+                        </div>
+
                         <!-- Repaired Text Box -->
                         <div style="margin-bottom: 16px;">
                             <div style="font-size: 0.82rem; font-weight: 700; color: #065f46; margin-bottom: 6px; display: flex; justify-content: space-between;">
-                                <span>✨ Corrected & Certified Version (Preserving your phrasing):</span>
-                                <span style="font-weight: normal; color: #059669;">100% faithful to original meaning</span>
+                                <span>✨ Corrected & Certified Version (Faithful to legal rights & obligations):</span>
+                                <span style="font-weight: normal; color: #059669;">100% verified fidelity</span>
                             </div>
-                            <div id="repairedTextBox" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 16px; padding: 14px 18px; font-size: 1rem; line-height: 1.6; color: #14532d; font-weight: 600;">
+                            <div id="repairedTextBox" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 16px; padding: 14px 18px; font-size: 1.05rem; line-height: 1.6; color: #14532d; font-weight: 600;">
                                 --
                             </div>
                         </div>
@@ -1210,6 +1282,12 @@
                         </div>
 
                         <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                            <button class="nav-badge-pill" onclick="downloadExportedDoc('docx', 'repair')" style="font-weight: 700; color: #0369a1;">
+                                📥 Download .DOCX
+                            </button>
+                            <button class="nav-badge-pill" onclick="downloadExportedDoc('pdf', 'repair')" style="font-weight: 700; color: #0369a1;">
+                                📥 Download .PDF
+                            </button>
                             <button class="nav-badge-pill" onclick="copyRepairedText()">
                                 📋 Copy Text
                             </button>
@@ -1253,7 +1331,7 @@
                     </div>
 
                     <!-- Metrics Grid (ColBERT MaxSim Late Interaction) -->
-                    <div class="card-3d-grid">
+                    <div id="singleMetricsGrid" class="card-3d-grid">
                         <div class="tile-3d">
                             <div class="tile-label" style="display: flex; justify-content: center; align-items: center; gap: 4px;">
                                 <span>Multi-Vector ColBERT (MaxSim)</span>
@@ -1285,7 +1363,7 @@
                     </div>
 
                     <!-- Visual Diff -->
-                    <div style="margin-top: 20px;">
+                    <div id="singleDiffSection" style="margin-top: 20px;">
                         <div style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">🔍 Word-by-Word Differential Analysis</div>
                         <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
                             <span class="diff-delete">Omitted or removed text</span>
@@ -1300,19 +1378,28 @@
             </div>
 
             <!-- ========================================== -->
-            <!-- TAB 2: EXPLORER FRJUDGE BENCHMARK          -->
+            <!-- TAB 2: EXPLORER MULTILINGUAL CORPUS        -->
             <!-- ========================================== -->
             <div id="tab-explorer" class="tab-content">
                 <div class="workspace-panel">
-                    <div class="panel-header">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
                         <div class="panel-title">
                             <span>📚</span>
-                            <span>FrJUDGE Corpus - Certified Legal Benchmark Annotations</span>
+                            <span>Multilingual Legal Corpus (French, English & Hindi)</span>
+                        </div>
+                        <div id="corpusStatsBadge" class="badge-pill badge-pill-info" style="font-size: 0.76rem;">
+                            🌐 Loading counts...
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-                        <input type="text" id="datasetSearchInput" class="selector-pill" style="flex: 1; padding: 10px 16px;" placeholder="Search by keyword (e.g., exclusion, vehicle, indemnity, termination)..." onkeyup="handleSearchKey(event)">
+                    <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+                        <select id="datasetLangFilter" class="selector-pill" style="padding: 10px 14px; font-weight: 700;" onchange="searchDataset()">
+                            <option value="all">🌐 All Languages (EN + HI + FR)</option>
+                            <option value="en">🇬🇧 English (ContractNLI & Legal)</option>
+                            <option value="hi">🇮🇳 Hindi (MILDSum & Hindi Legal)</option>
+                            <option value="fr">🇫🇷 French (FrJUDGE Corpus)</option>
+                        </select>
+                        <input type="text" id="datasetSearchInput" class="selector-pill" style="flex: 1; min-width: 220px; padding: 10px 16px;" placeholder="Search English, Hindi, or French clauses (e.g., confidential, bail, exclusion, किराया)..." onkeyup="handleSearchKey(event)">
                         <button class="btn-3d" onclick="searchDataset()" style="padding: 10px 22px;">Search</button>
                     </div>
 
@@ -1320,17 +1407,18 @@
                         <table class="corpus-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th style="width: 140px;">Category</th>
+                                    <th style="width: 55px;">#</th>
+                                    <th style="width: 145px;">Language / Source</th>
+                                    <th style="width: 135px;">Category</th>
                                     <th>Original Clause</th>
                                     <th>Simplified Clause</th>
-                                    <th style="width: 90px;">Meaning / 10</th>
-                                    <th style="width: 120px;">Readability</th>
-                                    <th style="width: 90px;">Action</th>
+                                    <th style="width: 85px;">Meaning / 10</th>
+                                    <th style="width: 115px;">Label / Readability</th>
+                                    <th style="width: 110px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="datasetTableBody">
-                                <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading FrJUDGE corpus...</td></tr>
+                                <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading multilingual corpus...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1878,75 +1966,90 @@
                     }
                 }
 
-                // Cross-Encoder Bidirectional NLI
+                // Cross-Encoder Bidirectional NLI & Single vs Whole-Document Switch
+                const docAuditPanel = document.getElementById('documentAuditPanel');
                 const nliCard = document.getElementById('nliCard');
-                if (data.nli && nliCard) {
-                    nliCard.style.display = 'block';
-                    const nliBadge = document.getElementById('nliVerdictBadge');
-                    
-                    const maxContra = Math.max(
-                        data.nli.p_contradiction || 0,
-                        (data.nli.reverse ? data.nli.reverse.p_contradiction : 0)
-                    );
-                    
-                    if (nliBadge) {
-                        nliBadge.innerText = data.nli.verdict;
-                        if (maxContra > 40) {
-                            nliBadge.className = 'badge-pill badge-pill-danger';
-                        } else if (data.nli.verdict && data.nli.verdict.includes('Bidirectionnel')) {
-                            nliBadge.className = 'badge-pill badge-pill-success';
-                        } else if (data.nli.p_entailment > 55) {
-                            nliBadge.className = 'badge-pill badge-pill-info';
-                        } else {
-                            nliBadge.className = 'badge-pill badge-pill-warning';
-                        }
-                    }
-                    
-                    const pEntail = document.getElementById('pEntailVal');
-                    if (pEntail) pEntail.innerText = (data.nli.forward ? data.nli.forward.p_entailment : data.nli.p_entailment) + '%';
-                    const pRev = document.getElementById('pReverseVal');
-                    if (pRev) pRev.innerText = (data.nli.reverse ? data.nli.reverse.p_entailment : '--') + '%';
-                    const pContra = document.getElementById('pContraVal');
-                    if (pContra) pContra.innerText = maxContra + '%';
-                    const nliMut = document.getElementById('nliMutualVal');
-                    if (nliMut) nliMut.innerText = (data.nli.mutual_score !== undefined ? data.nli.mutual_score : data.score) + '/10';
-                }
-
-                // Metrics
-                const valCos = document.getElementById('valCosine');
-                if (valCos) valCos.innerText = (data.metrics.colbert_maxsim !== undefined ? data.metrics.colbert_maxsim : data.metrics.cosine_similarity) + '%';
-                
-                const colbertCov = document.getElementById('colbertCoverageSub');
-                if (colbertCov && data.metrics.colbert_forward !== undefined) {
-                    colbertCov.innerHTML = `Cov A➔B: <strong>${data.metrics.colbert_forward}%</strong> &bull; Cov B➔A: <strong>${data.metrics.colbert_reverse}%</strong>`;
-                }
-                
-                const valJac = document.getElementById('valJaccard');
-                if (valJac) valJac.innerText = data.metrics.jaccard + '%';
-                
-                const valComp = document.getElementById('valCompression');
-                if (valComp) valComp.innerText = (data.metrics.compression_ratio > 0 ? '-' : '+') + Math.abs(data.metrics.compression_ratio) + '%';
-                
-                const valWords = document.getElementById('valWords');
-                if (valWords) valWords.innerText = `${data.metrics.words_orig} orig vs ${data.metrics.words_simp} simp`;
-
-                // Render FEATURE 1: ColBERT Token-to-Token Ribbon
-                renderColbertRibbons(data.metrics.tokens_a || [], data.metrics.tokens_b || [], data.metrics.colbert_alignment || []);
-
-                // Closed-Loop Auto-Repair Trigger
+                const singleMetricsGrid = document.getElementById('singleMetricsGrid');
+                const singleDiffSection = document.getElementById('singleDiffSection');
                 const repairCta = document.getElementById('repairCtaContainer');
                 const repairResult = document.getElementById('repairResultCard');
                 if (repairResult) repairResult.style.display = 'none';
-                if (repairCta) {
-                    if (data.score < 9.0 || (data.guardrails && !data.guardrails.passed)) {
-                        repairCta.style.display = 'block';
-                    } else {
-                        repairCta.style.display = 'none';
-                    }
-                }
 
-                // Diff
-                if (data.diff) renderDiff(data.diff);
+                if (data.is_document) {
+                    if (nliCard) nliCard.style.display = 'none';
+                    if (singleMetricsGrid) singleMetricsGrid.style.display = 'none';
+                    if (singleDiffSection) singleDiffSection.style.display = 'none';
+                    if (repairCta) repairCta.style.display = 'none';
+                    if (docAuditPanel) {
+                        docAuditPanel.style.display = 'block';
+                        renderDocumentAudit(data);
+                    }
+                } else {
+                    if (docAuditPanel) docAuditPanel.style.display = 'none';
+                    if (singleMetricsGrid) singleMetricsGrid.style.display = 'grid';
+                    if (singleDiffSection) singleDiffSection.style.display = 'block';
+
+                    if (data.nli && nliCard) {
+                        nliCard.style.display = 'block';
+                        const nliBadge = document.getElementById('nliVerdictBadge');
+                        
+                        const maxContra = Math.max(
+                            data.nli.p_contradiction || 0,
+                            (data.nli.reverse ? data.nli.reverse.p_contradiction : 0)
+                        );
+                        
+                        if (nliBadge) {
+                            nliBadge.innerText = data.nli.verdict;
+                            if (maxContra > 40) {
+                                nliBadge.className = 'badge-pill badge-pill-danger';
+                            } else if (data.nli.verdict && data.nli.verdict.includes('Bidirectionnel')) {
+                                nliBadge.className = 'badge-pill badge-pill-success';
+                            } else if (data.nli.p_entailment > 55) {
+                                nliBadge.className = 'badge-pill badge-pill-info';
+                            } else {
+                                nliBadge.className = 'badge-pill badge-pill-warning';
+                            }
+                        }
+                        
+                        const pEntail = document.getElementById('pEntailVal');
+                        if (pEntail) pEntail.innerText = (data.nli.forward ? data.nli.forward.p_entailment : data.nli.p_entailment) + '%';
+                        const pRev = document.getElementById('pReverseVal');
+                        if (pRev) pRev.innerText = (data.nli.reverse ? data.nli.reverse.p_entailment : '--') + '%';
+                        const pContra = document.getElementById('pContraVal');
+                        if (pContra) pContra.innerText = maxContra + '%';
+                        const nliMut = document.getElementById('nliMutualVal');
+                        if (nliMut) nliMut.innerText = (data.nli.mutual_score !== undefined ? data.nli.mutual_score : data.score) + '/10';
+                    }
+
+                    // Metrics
+                    const valCos = document.getElementById('valCosine');
+                    if (valCos) valCos.innerText = (data.metrics.colbert_maxsim !== undefined ? data.metrics.colbert_maxsim : data.metrics.cosine_similarity) + '%';
+                    
+                    const colbertCov = document.getElementById('colbertCoverageSub');
+                    if (colbertCov && data.metrics.colbert_forward !== undefined) {
+                        colbertCov.innerHTML = `Cov A➔B: <strong>${data.metrics.colbert_forward}%</strong> &bull; Cov B➔A: <strong>${data.metrics.colbert_reverse}%</strong>`;
+                    }
+                    
+                    const valJac = document.getElementById('valJaccard');
+                    if (valJac) valJac.innerText = data.metrics.jaccard + '%';
+                    
+                    const valComp = document.getElementById('valCompression');
+                    if (valComp) valComp.innerText = (data.metrics.compression_ratio > 0 ? '-' : '+') + Math.abs(data.metrics.compression_ratio) + '%';
+                    
+                    const valWords = document.getElementById('valWords');
+                    if (valWords) valWords.innerText = `${data.metrics.words_orig} orig vs ${data.metrics.words_simp} simp`;
+
+                    // Render FEATURE 1: ColBERT Token-to-Token Ribbon
+                    renderColbertRibbons(data.metrics.tokens_a || [], data.metrics.tokens_b || [], data.metrics.colbert_alignment || []);
+
+                    // Closed-Loop Auto-Repair & Multilingual Simplifier Trigger
+                    if (repairCta) {
+                        repairCta.style.display = 'block';
+                    }
+
+                    // Diff
+                    if (data.diff) renderDiff(data.diff);
+                }
 
                 if (!isLiveCall) {
                     container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1961,6 +2064,231 @@
                     spinner.style.display = 'none';
                 }
             }
+        }
+
+        // --- Document Upload & Drag-and-Drop Extractor ---
+        async function uploadDocFileToTarget(file, textareaId, badgeId) {
+            if (!file) return;
+            const badge = document.getElementById(badgeId);
+            if (badge) {
+                badge.style.display = 'inline-block';
+                badge.className = 'badge-pill badge-pill-info';
+                badge.innerText = `⏳ Reading ${file.name}...`;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const resp = await fetch('/api/extract-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                const res = await resp.json();
+                if (!resp.ok || res.error) {
+                    throw new Error(res.error || 'Could not extract document text.');
+                }
+
+                const box = document.getElementById(textareaId);
+                if (box) box.value = res.text;
+                if (badge) {
+                    badge.className = 'badge-pill badge-pill-success';
+                    badge.innerText = `📄 ${res.filename} (${res.clause_count} clause${res.clause_count === 1 ? '' : 's'})`;
+                }
+
+                // Auto-evaluate if both boxes now have text
+                const oVal = document.getElementById('origInput').value.trim();
+                const sVal = document.getElementById('simpInput').value.trim();
+                if (oVal && sVal) {
+                    runEvaluation();
+                }
+            } catch (err) {
+                if (badge) {
+                    badge.className = 'badge-pill badge-pill-danger';
+                    badge.innerText = `⚠️ ${err.message}`;
+                } else {
+                    alert('Document upload failed: ' + err.message);
+                }
+            }
+        }
+
+        function handleDocFileUpload(event, textareaId, badgeId) {
+            const file = event.target.files && event.target.files[0];
+            if (file) {
+                uploadDocFileToTarget(file, textareaId, badgeId);
+            }
+            event.target.value = ''; // Allow re-uploading same file
+        }
+
+        [
+            ['origInput', 'origFileBadge'],
+            ['simpInput', 'simpFileBadge']
+        ].forEach(([taId, badgeId]) => {
+            const ta = document.getElementById(taId);
+            if (!ta) return;
+            ta.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                ta.style.borderColor = '#0284c7';
+            });
+            ta.addEventListener('dragleave', () => {
+                ta.style.borderColor = '';
+            });
+            ta.addEventListener('drop', (e) => {
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    e.preventDefault();
+                    ta.style.borderColor = '';
+                    uploadDocFileToTarget(e.dataTransfer.files[0], taId, badgeId);
+                }
+            });
+        });
+
+        // --- Whole-Document Clause Audit & Inline Repair Renderer ---
+        let lastDocumentClauses = [];
+
+        function renderDocumentAudit(data) {
+            const sum = data.summary || {};
+            const badgesEl = document.getElementById('docSummaryBadges');
+            if (badgesEl) {
+                badgesEl.innerHTML = [
+                    `<span class="badge-pill badge-pill-success">✅ Preserved: ${sum.preserved || 0}</span>`,
+                    (sum.warnings ? `<span class="badge-pill badge-pill-warning">⚠️ Warnings: ${sum.warnings}</span>` : ''),
+                    (sum.contradictions ? `<span class="badge-pill badge-pill-danger">🚨 Contradictions: ${sum.contradictions}</span>` : ''),
+                    (sum.omitted ? `<span class="badge-pill badge-pill-danger">❌ Omitted Clauses: ${sum.omitted}</span>` : '')
+                ].filter(Boolean).join('');
+            }
+
+            const memBox = document.getElementById('docMemoryBox');
+            const memList = document.getElementById('docMemoryList');
+            const refs = data.resolved_references || [];
+            if (memBox && memList) {
+                if (refs.length > 0) {
+                    memBox.style.display = 'block';
+                    memList.innerHTML = refs.map(r => `<span class="badge-pill badge-pill-info" style="font-size: 0.74rem; margin: 2px;">${escapeHtml(r)}</span>`).join(' ');
+                } else {
+                    memBox.style.display = 'none';
+                }
+            }
+
+            const listEl = document.getElementById('docClauseList');
+            lastDocumentClauses = data.clauses || [];
+            if (!listEl) return;
+
+            listEl.innerHTML = lastDocumentClauses.map((c, idx) => {
+                let borderCol = '#10b981';
+                let bgCol = '#f0fdf4';
+                let statusPill = `<span class="badge-pill badge-pill-success">PRESERVED</span>`;
+                if (c.status === 'warning') {
+                    borderCol = '#f59e0b'; bgCol = '#fffbeb';
+                    statusPill = `<span class="badge-pill badge-pill-warning">WARNING</span>`;
+                } else if (c.status === 'contradiction') {
+                    borderCol = '#ef4444'; bgCol = '#fef2f2';
+                    statusPill = `<span class="badge-pill badge-pill-danger">CONTRADICTION</span>`;
+                } else if (c.status === 'omitted') {
+                    borderCol = '#dc2626'; bgCol = '#fef2f2';
+                    statusPill = `<span class="badge-pill badge-pill-danger">OMITTED CLAUSE</span>`;
+                }
+
+                const alertsHtml = (c.alerts && c.alerts.length > 0)
+                    ? `<div style="margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(239,68,68,0.08); color: #991b1b; font-size: 0.80rem; font-weight: 600;">${c.alerts.map(a => `• ${escapeHtml(a.message)}`).join('<br>')}</div>`
+                    : '';
+
+                const resHtml = (c.resolutions && c.resolutions.length > 0)
+                    ? `<div style="margin-top: 6px; font-size: 0.75rem; color: #0369a1; font-weight: 600;">🧠 Context Applied: ${c.resolutions.map(r => escapeHtml(r)).join(' &bull; ')}</div>`
+                    : '';
+
+                const repairBtn = (c.status !== 'preserved' && c.resolved_orig)
+                    ? `<button class="nav-badge-pill" id="docRepairBtn_${idx}" onclick="repairDocClause(${idx})" style="background: #0284c7; color: #ffffff; border: none; font-size: 0.75rem; padding: 4px 12px; font-weight: 700;">🛠️ Auto-Repair Clause #${c.clause_num}</button>`
+                    : '';
+
+                return `
+                    <div style="border: 1.5px solid ${borderCol}; border-left: 5px solid ${borderCol}; background: ${bgCol}; border-radius: 14px; padding: 14px 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 800; color: #0f172a;">Clause #${c.clause_num}</span>
+                                ${statusPill}
+                                <span style="font-size: 0.78rem; color: #475569; font-weight: 600;">${escapeHtml(c.nli_verdict || '')}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                ${repairBtn}
+                                <span style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">${c.score.toFixed(1)}/10</span>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 0.85rem;">
+                            <div style="background: #ffffff; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.70rem; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 4px;">Original Clause</div>
+                                <div style="color: #1e293b;">${escapeHtml(c.orig)}</div>
+                            </div>
+                            <div style="background: #ffffff; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.70rem; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 4px;">Simplified Target</div>
+                                <div style="color: #1e293b;">${escapeHtml(c.simp)}</div>
+                            </div>
+                        </div>
+                        ${resHtml}
+                        ${alertsHtml}
+                        <div id="docClauseFix_${idx}" style="display: none; margin-top: 10px; background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 10px; padding: 10px 12px;"></div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function repairDocClause(idx) {
+            const c = lastDocumentClauses[idx];
+            if (!c || !c.resolved_orig) return;
+
+            const btn = document.getElementById(`docRepairBtn_${idx}`);
+            const fixBox = document.getElementById(`docClauseFix_${idx}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '⏳ Repairing...';
+            }
+
+            try {
+                const flawedInput = (c.status === 'omitted') ? c.resolved_orig : (c.resolved_simp || c.simp);
+                const resp = await fetch('/api/repair', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        original: c.resolved_orig,
+                        simplification: flawedInput,
+                        domain: 'legal',
+                        target_lang: 'auto'
+                    })
+                });
+                const res = await resp.json();
+                if (res.error) throw new Error(res.error);
+
+                if (fixBox) {
+                    fixBox.style.display = 'block';
+                    fixBox.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                            <span style="font-size: 0.78rem; font-weight: 800; color: #065f46;">✅ Certified Replacement (Score: ${res.repaired_score.toFixed(1)}/10)</span>
+                            <button class="nav-badge-pill" onclick="applyClauseFixToDoc(${idx}, ${JSON.stringify(res.repaired_target)})" style="background: #059669; color: #fff; border: none; font-size: 0.74rem; padding: 4px 10px; font-weight: 700;">✨ Apply Fix to Document & Re-Audit</button>
+                        </div>
+                        <div style="font-size: 0.88rem; color: #064e3b; font-weight: 600;">${escapeHtml(res.repaired_target)}</div>
+                    `;
+                }
+            } catch (err) {
+                alert('Clause repair failed: ' + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = `🛠️ Auto-Repair Clause #${c.clause_num}`;
+                }
+            }
+        }
+
+        function applyClauseFixToDoc(idx, newText) {
+            const c = lastDocumentClauses[idx];
+            if (!c) return;
+            const simpBox = document.getElementById('simpInput');
+            let fullText = simpBox.value;
+            if (c.status === 'omitted') {
+                simpBox.value = fullText.trim() + (fullText.trim().endsWith('.') ? '\n' : '.\n') + newText;
+            } else if (c.simp && fullText.includes(c.simp)) {
+                simpBox.value = fullText.replace(c.simp, newText);
+            } else {
+                simpBox.value = fullText.trim() + '\n' + newText;
+            }
+            runEvaluation();
         }
 
         // ColBERT Ribbon Visualizer (Removed from web view per user request)
@@ -1980,11 +2308,12 @@
             liveDebounceTimer = setTimeout(async () => {
                 const orig = document.getElementById('origInput').value.trim();
                 const simp = document.getElementById('simpInput').value.trim();
-                if (orig.length >= 6 && simp.length >= 6) {
-                    await runEvaluation(true); // silent live call
+                const isMultiDoc = orig.includes('\n') || simp.includes('\n');
+                if (orig.length >= 6 && simp.length >= 6 && !isMultiDoc) {
+                    await runEvaluation(true); // silent live call on single-clause mode
                 }
                 pulse.style.display = 'none';
-            }, 360);
+            }, 380);
         });
 
         // Multi-level functions disabled per user preference
@@ -2083,10 +2412,17 @@
         // --- Closed-Loop Auto-Repair Execution ---
         let currentRepairedText = "";
 
+        function switchRepairLang(lang) {
+            const selector = document.getElementById('repairLangSelector');
+            if (selector) selector.value = lang;
+            runAutoRepair();
+        }
+
         async function runAutoRepair() {
             const orig = document.getElementById('origInput').value.trim();
             const simp = document.getElementById('simpInput').value.trim();
             const domain = 'auto';
+            const targetLang = document.getElementById('repairLangSelector')?.value || 'auto';
 
             if (!orig || !simp) return;
 
@@ -2099,7 +2435,7 @@
                 const response = await fetch('/api/repair', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ original: orig, simplification: simp, domain: domain })
+                    body: JSON.stringify({ original: orig, simplification: simp, domain: domain, target_lang: targetLang })
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -2116,6 +2452,12 @@
                 document.getElementById('repairNewScore').innerText = data.repaired_score.toFixed(1) + '/10';
                 document.getElementById('repairDeltaBadge').innerText = data.score_delta;
                 document.getElementById('repairedTextBox').innerText = data.repaired_target;
+
+                const langBadge = document.getElementById('currentRepairLangBadge');
+                if (langBadge) {
+                    const langMap = { 'en': '🇬🇧 English', 'hi': '🇮🇳 हिन्दी (Hindi)', 'fr': '🇫🇷 Français', 'auto': '🌐 Auto' };
+                    langBadge.innerText = langMap[data.target_lang] || data.target_lang || 'English';
+                }
 
                 const genBadge = document.getElementById('repairGeneratorBadge');
                 if (genBadge) {
@@ -2175,46 +2517,120 @@
             });
         }
 
-        // --- Corpus Search ---
+        async function downloadExportedDoc(fmt, sourceKind) {
+            const text = (sourceKind === 'repair' && currentRepairedText)
+                ? currentRepairedText
+                : (document.getElementById('simpInput').value || '').trim();
+
+            if (!text) {
+                alert("Please evaluate or repair a document first before downloading.");
+                return;
+            }
+
+            const payload = {
+                text: text,
+                format: fmt,
+                filename: sourceKind === 'repair' ? 'judgebert_repaired_clause' : 'judgebert_verified_document',
+                title: sourceKind === 'repair' ? 'Certified Repaired Simplification' : 'Verified Plain-Language Document',
+                score: currentEvalData ? currentEvalData.score : null,
+                tier: currentEvalData ? currentEvalData.tier : '',
+                mode: currentEvalData ? currentEvalData.mode : ''
+            };
+
+            try {
+                const resp = await fetch('/api/export-document', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) {
+                    const errJson = await resp.json().catch(() => ({}));
+                    throw new Error(errJson.error || `HTTP ${resp.status}`);
+                }
+                const blob = await resp.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${payload.filename}.${fmt}`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert(`Download (${fmt.toUpperCase()}) failed: ${err.message}`);
+            }
+        }
+
+        // --- Corpus Search (Multilingual EN + HI + FR) ---
+        let currentDatasetItems = [];
+
+        function loadCorpusItem(idx) {
+            const it = currentDatasetItems[idx];
+            if (!it) return;
+            selectExampleFromTable(it.original, it.simplification);
+        }
+
+        async function loadCorpusStats() {
+            const badge = document.getElementById('corpusStatsBadge');
+            if (!badge) return;
+            try {
+                const st = await (await fetch('/api/stats')).json();
+                badge.innerText = `🌐 Total: ${st.total_annotations}  (🇬🇧 EN: ${st.en_count || 0} • 🇮🇳 HI: ${st.hi_count || 0} • 🇫🇷 FR: ${st.fr_count || 0})`;
+            } catch (e) {
+                badge.innerText = '🌐 Multilingual Corpus';
+            }
+        }
+
         function handleSearchKey(e) {
             if (e.key === 'Enter') searchDataset();
         }
 
         async function searchDataset() {
             const query = document.getElementById('datasetSearchInput').value.trim();
+            const langEl = document.getElementById('datasetLangFilter');
+            const langVal = langEl ? langEl.value : 'all';
             const tbody = document.getElementById('datasetTableBody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Searching corpus...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Searching multilingual corpus...</td></tr>';
+
+            loadCorpusStats();
 
             try {
-                const response = await fetch(`/api/dataset?q=${encodeURIComponent(query)}&limit=30`);
+                const response = await fetch(`/api/dataset?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(langVal)}&limit=45`);
                 const items = await response.json();
+                currentDatasetItems = items;
 
                 if (!items.length) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No matching clauses found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">No matching clauses found.</td></tr>';
                     return;
                 }
 
                 let html = '';
-                items.forEach(it => {
-                    const score = it.legal_meaning || '--';
+                items.forEach((it, idx) => {
+                    const score = it.legal_meaning !== undefined ? it.legal_meaning : '--';
+                    const numScore = parseFloat(score);
                     let badgeClass = 'badge-pill-info';
-                    if (score >= 8) badgeClass = 'badge-pill-success';
-                    else if (score <= 4) badgeClass = 'badge-pill-danger';
-                    else if (score < 8) badgeClass = 'badge-pill-warning';
+                    if (!isNaN(numScore)) {
+                        if (numScore >= 8) badgeClass = 'badge-pill-success';
+                        else if (numScore <= 4) badgeClass = 'badge-pill-danger';
+                        else badgeClass = 'badge-pill-warning';
+                    }
+
+                    const langBadge = `${it.lang_label || '🇫🇷 French'}<br><span style="font-size: 0.70rem; color: #64748b; font-weight: 600;">${escapeHtml(it.source || 'FrJUDGE')}</span>`;
 
                     html += `<tr>
                         <td><strong>${it.id}</strong></td>
-                        <td><span style="font-size: 0.8rem; font-weight: 700;">${escapeHtml(it.category_name)}</span></td>
-                        <td style="max-width: 300px;">${escapeHtml(it.original)}</td>
-                        <td style="max-width: 300px;">${escapeHtml(it.simplification)}</td>
+                        <td><span style="font-size: 0.78rem; font-weight: 700;">${langBadge}</span></td>
+                        <td><span style="font-size: 0.78rem; font-weight: 700;">${escapeHtml(it.category_name)}</span></td>
+                        <td style="max-width: 280px;">${escapeHtml(it.original)}</td>
+                        <td style="max-width: 280px;">${escapeHtml(it.simplification)}</td>
                         <td><span class="badge-pill ${badgeClass}">${score}/10</span></td>
-                        <td><span style="font-size: 0.8rem;">${escapeHtml(it.simplicity || '-')}</span></td>
-                        <td><button class="nav-badge-pill" style="padding: 4px 10px; font-size: 0.78rem;" onclick="selectExampleFromTable(${JSON.stringify(it.original)}, ${JSON.stringify(it.simplification)})">Test in Arbiter</button></td>
+                        <td><span style="font-size: 0.78rem;">${escapeHtml(it.simplicity || '-')}</span></td>
+                        <td><button class="nav-badge-pill" style="padding: 4px 10px; font-size: 0.76rem; white-space: nowrap;" onclick="loadCorpusItem(${idx})">Test in Arbiter</button></td>
                     </tr>`;
                 });
                 tbody.innerHTML = html;
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align: center; padding: 20px;">Error: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="color: red; text-align: center; padding: 20px;">Error: ${err.message}</td></tr>`;
             }
         }
 

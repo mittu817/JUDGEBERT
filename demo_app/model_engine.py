@@ -8,6 +8,20 @@ from pathlib import Path
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from demo_app.legal_guardrails import LegalGuardrails
 
+try:
+    from langdetect import detect_langs, DetectorFactory
+    DetectorFactory.seed = 0
+    HAS_LANGDETECT = True
+except ImportError:
+    HAS_LANGDETECT = False
+
+LATIN_LEGAL_TERMS = {
+    'force majeure', 'prima facie', 'bona fide', 'pro rata', 'mutatis mutandis',
+    'res judicata', 'inter alia', 'de facto', 'de jure', 'ipso facto',
+    'status quo', 'ad hoc', 'consensus ad idem', 'ultra vires', 'quid pro quo',
+    'habeas corpus', 'mens rea', 'actio personalis', 'caveat emptor', 'in camera'
+}
+
 # Force offline mode for pre-cached Hugging Face models
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -105,32 +119,162 @@ class JudgeBertEngine:
             print(f"[INFO] Dynamic NLI Label Mapping: {self.nli_label_indices}")
 
     def _load_dataset(self):
+        # 1. French Legal Corpus (FrJUDGE)
         released_file = DATASTORE_DIR / "released" / "FrJUDGE.jsonl"
         if released_file.exists():
             with open(released_file, "r", encoding="utf-8") as f:
-                for idx, line in enumerate(f):
+                for line in f:
                     if line.strip():
                         try:
                             item = json.loads(line)
-                            item["id"] = idx + 1
+                            item["id"] = len(self.dataset_items) + 1
                             cat_id = str(item.get("qualification", "18"))
                             item["category_name"] = CATEGORIES.get(cat_id, "Other")
+                            item["lang"] = "fr"
+                            item["langs"] = ["fr"]
+                            item["lang_label"] = "🇫🇷 French"
+                            item["source"] = "FrJUDGE"
                             self.dataset_items.append(item)
                         except Exception:
                             continue
 
+        # 2. English Legal Corpus (ContractNLI NDA & Confidentiality Clauses)
+        cnli_file = DATASTORE_DIR / "monolingual_english" / "contract_nli" / "contract-nli" / "test.json"
+        if cnli_file.exists():
+            try:
+                with open(cnli_file, "r", encoding="utf-8") as f:
+                    cnli_data = json.load(f)
+                labels_info = cnli_data.get("labels", {})
+                seen_en = set()
+                en_added = 0
+                for doc in cnli_data.get("documents", []):
+                    if en_added >= 400:
+                        break
+                    text = doc.get("text", "")
+                    spans = doc.get("spans", [])
+                    for ann_set in doc.get("annotation_sets", []):
+                        for label_key, ann in ann_set.get("annotations", {}).items():
+                            if en_added >= 400:
+                                break
+                            choice = ann.get("choice", "")
+                            if choice not in ("Entailment", "Contradiction"):
+                                continue
+                            span_idxs = ann.get("spans", [])
+                            if not span_idxs:
+                                continue
+                            hyp = labels_info.get(label_key, {}).get("hypothesis", "").strip()
+                            parts = [text[spans[idx][0]:spans[idx][1]].strip() for idx in span_idxs if idx < len(spans)]
+                            clause_txt = " ".join(parts).strip()
+                            if not clause_txt or not hyp or len(clause_txt) < 15:
+                                continue
+                            sig = (clause_txt[:90], hyp)
+                            if sig in seen_en:
+                                continue
+                            seen_en.add(sig)
+                            score_val = "10" if choice == "Entailment" else "0"
+                            self.dataset_items.append({
+                                "id": len(self.dataset_items) + 1,
+                                "original": clause_txt[:500],
+                                "simplification": hyp,
+                                "legal_meaning": score_val,
+                                "simplicity": "Entailment (Preserved)" if choice == "Entailment" else "Contradiction (Inverted)",
+                                "category_name": "NDA / Confidentiality",
+                                "lang": "en",
+                                "langs": ["en"],
+                                "lang_label": "🇬🇧 English",
+                                "source": "ContractNLI",
+                            })
+                            en_added += 1
+            except Exception as exc:
+                print(f"[WARN] Could not load ContractNLI corpus: {exc}")
+
+        # 3. Hindi & Indian High Court Legal Corpus (MILDSum EN->HI & HI->HI)
+        mildsum_file = DATASTORE_DIR / "cross_lingual" / "mildsum" / "mildsum_benchmark_all.jsonl"
+        if mildsum_file.exists():
+            with open(mildsum_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        raw = json.loads(line)
+                        orig = raw.get("original", "").strip()
+                        simp = raw.get("simplification", "").strip()
+                        if not orig or not simp:
+                            continue
+                        src_l = raw.get("src_lang", "en").lower()
+                        tgt_l = raw.get("tgt_lang", "hi").lower()
+                        label = raw.get("label", "entailment").lower()
+                        score_val = str(int(round(float(raw.get("score", "10" if label == "entailment" else "0")))))
+                        langs_tag = ["hi"] if src_l == "hi" else ["hi", "en"]
+                        self.dataset_items.append({
+                            "id": len(self.dataset_items) + 1,
+                            "original": orig,
+                            "simplification": simp,
+                            "legal_meaning": score_val,
+                            "simplicity": "Court Ruling (Preserved)" if label == "entailment" else "Court Contradiction",
+                            "category_name": "Indian Court Rulings" if label == "entailment" else "Judgment Inversion",
+                            "lang": "hi",
+                            "langs": langs_tag,
+                            "lang_label": "🇮🇳 Hindi" if src_l == "hi" else "🇮🇳 Hindi (EN→HI)",
+                            "source": "MILDSum",
+                        })
+                    except Exception:
+                        continue
+
+        # 4. Hindi Monolingual Corpus (Clean Devanagari Pairs)
+        hindi_mono_file = DATASTORE_DIR / "cross_lingual" / "hindi" / "hindi_monolingual.jsonl"
+        if hindi_mono_file.exists():
+            hi_added = 0
+            with open(hindi_mono_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if hi_added >= 400:
+                        break
+                    if not line.strip():
+                        continue
+                    try:
+                        raw = json.loads(line)
+                        orig = raw.get("original", "").strip()
+                        simp = raw.get("simplification", "").strip()
+                        if not orig or not simp:
+                            continue
+                        label = raw.get("label", "neutral").lower()
+                        if label not in ("entailment", "contradiction"):
+                            continue
+                        score_val = "10" if label == "entailment" else "0"
+                        self.dataset_items.append({
+                            "id": len(self.dataset_items) + 1,
+                            "original": orig,
+                            "simplification": simp,
+                            "legal_meaning": score_val,
+                            "simplicity": "Entailment (Hindi)" if label == "entailment" else "Contradiction (Hindi)",
+                            "category_name": "General & Policy (Hindi)",
+                            "lang": "hi",
+                            "langs": ["hi"],
+                            "lang_label": "🇮🇳 Hindi",
+                            "source": "Hindi Corpus",
+                        })
+                        hi_added += 1
+                    except Exception:
+                        continue
+
     def detect_lang(self, text: str) -> str:
-        # 1. Check for Devanagari script (Hindi / Indic languages)
+        if not text or not text.strip():
+            return "en"
+
+        # 1. Tier 1: Check for Devanagari script (Hindi / Indic languages)
         if re.search(r"[\u0900-\u097F]", text):
             return "hi"
 
         text_lower = text.lower()
         
-        # 2. Check for characteristic French diacritics / elisions
+        # 2. Tier 2: Check for Legal Latin Maxims (prevent misclassification of English contracts)
+        has_legal_latin = any(term in text_lower for term in LATIN_LEGAL_TERMS)
+
+        # 3. Tier 3: Characteristic French diacritics / elisions
         french_char_patterns = r"[éèêëàâùûçôîïœæ]|(?:^|\s)(?:l\'|d\'|qu\'|n\'|j\'|c\'|s\'|m\'|t\')"
         has_french_chars = bool(re.search(french_char_patterns, text_lower))
 
-        # 3. Clean word tokens
+        # 4. Token counts
         words = set([re.sub(r"^[^\w]+|[^\w]+$", "", w) for w in text_lower.split() if w.strip()])
 
         french_words = {
@@ -141,7 +285,7 @@ class JudgeBertEngine:
             "ne", "pas", "plus", "tout", "tous", "toute", "toutes", "être", "avoir", "faire", "doit",
             "doivent", "frais", "contrat", "assuré", "assureur", "assurance", "sinistre", "indemnité",
             "police", "garantie", "dommages", "avis", "délai", "sauf", "visé", "autre", "semblable",
-            "présente", "accueilli", "musée", "année", "dernière"
+            "présente", "accueilli", "musée", "année", "dernière", "bonjour", "merci", "loyer", "oui", "non"
         }
 
         english_words = {
@@ -154,17 +298,43 @@ class JudgeBertEngine:
             "about", "into", "through", "during", "before", "after", "above", "below", "up", "down",
             "out", "off", "over", "under", "here", "there", "when", "where", "why", "how", "who",
             "which", "what", "more", "most", "some", "such", "no", "nor", "only", "own", "same",
-            "than", "too", "very", "just", "now", "people", "person", "time", "year", "good", "new"
+            "than", "too", "very", "just", "now", "people", "person", "time", "year", "good", "new",
+            "hello", "yes", "no", "tenant", "landlord", "pay", "paid", "payment", "report", "days", "rent"
         }
 
         fr_matches = len(words & french_words)
         en_matches = len(words & english_words)
 
         # If explicit French accents/elisions are found AND French matches dominate or tie
-        if has_french_chars and fr_matches >= en_matches:
+        if has_french_chars and fr_matches >= en_matches and not has_legal_latin:
             return "fr"
 
-        if fr_matches > en_matches:
+        # Short sentence check (< 8 words)
+        if len(words) < 8:
+            if fr_matches > en_matches and not has_legal_latin:
+                return "fr"
+            if en_matches > 0 or has_legal_latin:
+                return "en"
+
+        # 5. Tier 4: Statistical AI N-Gram Sensor (langdetect)
+        if HAS_LANGDETECT:
+            clean_for_ai = text_lower
+            for term in LATIN_LEGAL_TERMS:
+                clean_for_ai = clean_for_ai.replace(term, " ")
+            try:
+                langs = detect_langs(clean_for_ai)
+                if langs:
+                    top = langs[0]
+                    if top.lang == "fr" and top.prob >= 0.70 and not has_legal_latin:
+                        return "fr"
+                    if top.lang == "hi":
+                        return "hi"
+                    if top.lang == "en":
+                        return "en"
+            except Exception:
+                pass
+
+        if fr_matches > en_matches and not has_legal_latin:
             return "fr"
 
         # Default to English for Latin text
@@ -425,15 +595,15 @@ class JudgeBertEngine:
             t = re.sub(pat, rep, t)
         return t
 
-    def evaluate_pair(self, orig: str, simp: str, domain: str = "auto"):
+    def evaluate_pair(self, orig: str, simp: str, domain: str = "auto", lang_orig: str = "auto", lang_simp: str = "auto"):
         orig_clean = orig.strip()
         simp_clean = simp.strip()
 
         if not orig_clean or not simp_clean:
             return {"error": "Les deux phrases doivent être fournies."}
 
-        lang_o = self.detect_lang(orig_clean)
-        lang_s = self.detect_lang(simp_clean)
+        lang_o = lang_orig if lang_orig in ("en", "fr", "hi") else self.detect_lang(orig_clean)
+        lang_s = lang_simp if lang_simp in ("en", "fr", "hi") else self.detect_lang(simp_clean)
 
         # 1. Run Comprehensive Neuro-Symbolic Guardrails (Domain-Aware: Legal vs General)
         gr_result = LegalGuardrails.verify_all_guardrails(orig_clean, simp_clean, domain=domain)
@@ -476,6 +646,8 @@ class JudgeBertEngine:
                 },
                 "diff": self.compute_diff(orig_clean, simp_clean),
                 "predicted_category": self.predict_category(orig_clean, domain=resolved_domain),
+                "lang_orig": lang_o,
+                "lang_simp": lang_s,
             }
 
         # 3. ColBERT-Style Multi-Vector Late Interaction (MaxSim) + Pooled Dense Embeddings
@@ -531,10 +703,10 @@ class JudgeBertEngine:
                 print(f"[WARN] Cross-Encoder bidirectional inference failed: {e}")
 
         # Directional NLI Scores:
-        # In text simplification & paraphrase, when contradiction is low (< 0.15),
-        # an NLI 'neutral' label simply reflects colloquial or broader wording, NOT an error.
-        neut_weight_f = 8.5 if p_contra_f < 0.15 else 4.0
-        neut_weight_r = 8.5 if p_contra_r < 0.15 else 4.5
+        # An NLI 'neutral' reflects valid colloquial simplification ONLY if there is significant entailment.
+        # If entailment is negligible (< 0.20), 'neutral' represents unsupported claims/scope drift, not simplification.
+        neut_weight_f = (3.5 + 5.0 * min(1.0, p_entail_f / 0.30)) if p_contra_f < 0.15 else 3.0
+        neut_weight_r = (3.5 + 5.0 * min(1.0, p_entail_r / 0.30)) if p_contra_r < 0.15 else 3.5
         score_f = (10.0 * p_entail_f) + (neut_weight_f * p_neutral_f) + (0.0 * p_contra_f)
         score_r = (10.0 * p_entail_r) + (neut_weight_r * p_neutral_r) + (0.0 * p_contra_r)
         
@@ -572,12 +744,23 @@ class JudgeBertEngine:
             nli_verdict = "Bi-Directional Entailment (Strict Equivalent Meaning A ⟺ B)"
         elif p_entail_f >= 0.60:
             nli_verdict = "Unilateral Entailment (Meaning Preserved with Nuance Loss A ⟹ B)"
-        elif p_contra_f < 0.15:
+        elif p_entail_f >= 0.30 and p_contra_f < 0.15:
             nli_verdict = "Compatible Plain-Language Simplification (A ≈ B)"
         elif p_contra_f > 0.40 or p_contra_r > 0.40:
             nli_verdict = "Contradiction (Incompatible or Inverted Meaning)"
         else:
-            nli_verdict = "Neutral / Divergent Information"
+            nli_verdict = "Neutral / Divergent Information (Unsubstantiated or Scope Drift)"
+
+        # Check for Semantic Scope Divergence / Unentailed Claims (Neither A entails B nor B entails A)
+        if p_entail_f < 0.20 and p_entail_r < 0.20 and (p_neutral_f > 0.60 or p_neutral_r > 0.60):
+            gr_result["alerts"].append({
+                "type": "scope_divergence",
+                "level": "warning",
+                "message": "Semantic Scope Divergence: The target statement is not entailed by the source (different subjects, entities, or claims).",
+                "penalty": 4.0
+            })
+            gr_result["total_penalty"] += 4.0
+            gr_result["passed"] = False
 
         # Check for Over-simplification / Under-specification via Reverse Entailment
         # If simplification is heavily compressed and reverse entailment is near zero
@@ -616,12 +799,16 @@ class JudgeBertEngine:
         elif is_nli_false_alarm:
             final_score = max(7.0, min(9.5, 0.70 * dense_score + 0.30 * cross_encoder_score))
         elif lang_o != lang_s:
-            # Cross-Lingual: dense multilingual transformer is the primary cross-lingual semantic carrier
+            # Cross-Lingual: dense multilingual transformer + Native Multilingual Cross-Encoder NLI
             if p_contra_f > 0.40 and semantic_sim < 0.65:
                 final_score = max(0.5, 10.0 * (1.0 - p_contra_f))
             else:
                 contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.25 else 0.0
-                final_score = max(0.0, min(10.0, dense_score - contra_penalty - gr_result["total_penalty"]))
+                if p_entail_f >= 0.60:
+                    xl_base = 0.60 * cross_encoder_score + 0.40 * dense_score
+                else:
+                    xl_base = 0.30 * cross_encoder_score + 0.70 * dense_score
+                final_score = max(0.0, min(10.0, xl_base - contra_penalty - gr_result["total_penalty"]))
         elif (lang_o == "fr" and lang_s == "fr") or (lang_o == "hi" and lang_s == "hi"):
             # French / Hindi Monolingual Legal: rely on fine-tuned multilingual model + guardrails
             contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.30 else 0.0
@@ -735,6 +922,8 @@ class JudgeBertEngine:
             "diff": self.compute_diff(orig_clean, simp_clean),
             "predicted_category": self.predict_category(orig_clean, domain=resolved_domain),
             "domain": resolved_domain,
+            "lang_orig": lang_o,
+            "lang_simp": lang_s,
         }
 
     def get_benchmark_examples(self):
@@ -956,6 +1145,27 @@ class JudgeBertEngine:
             "category": "Indian High Court Rulings (MILDSum Hindi Monolingual)",
         })
 
+        # 19. Whole-Document Multi-Clause Contract Benchmark (with Pronouns, Aliases & Omission)
+        examples.append({
+            "id": 919,
+            "title": "📄 [Whole Contract Document] Multi-Clause MSA (Pronouns, Vendor Alias & Omitted Clause)",
+            "original": (
+                "Acme Holdings LLC (\"Vendor\") agrees to provide cloud infrastructure services starting January 1, 2026.\n"
+                "Vendor shall pay a 15% penalty if downtime exceeds 4 hours in a billing month.\n"
+                "They must deliver all monthly security audits within 30 days after month end.\n"
+                "All intellectual property created during the term remains exclusively owned by the Client."
+            ),
+            "simplification": (
+                "Acme Holdings LLC will provide cloud hosting services beginning January 1, 2026.\n"
+                "Acme Holdings LLC has to pay a 15% penalty when downtime is more than 4 hours per month.\n"
+                "Acme Holdings LLC is not required to deliver monthly security audits."
+            ),
+            "human_score": "2.5",
+            "simplicity": "Whole-Document Audit",
+            "justifications": "Whole-Document Check: Resolves 'Vendor'/'They' -> Acme Holdings LLC cleanly across clauses, while flagging Clause 3 Obligation Cancellation and Clause 4 Omission (IP Rights deleted).",
+            "category": "Multi-Clause Contracts (Document Auditor)",
+        })
+
         # Curated French examples from FrJUDGE
         curated_ids = [1, 2, 3, 4, 5, 12, 25, 45]
         for item in self.dataset_items:
@@ -972,19 +1182,58 @@ class JudgeBertEngine:
                 })
         return examples
 
-    def search_dataset(self, query: str = "", limit: int = 50):
-        query = query.lower().strip()
-        results = []
-        for item in self.dataset_items:
-            if not query or query in item.get("original", "").lower() or query in item.get("simplification", "").lower() or query in item.get("category_name", "").lower():
-                results.append(item)
-                if len(results) >= limit:
-                    break
-        return results
+    def search_dataset(self, query: str = "", limit: int = 50, lang: str = "all"):
+        query_l = (query or "").lower().strip()
+        lang_l = (lang or "all").lower().strip()
 
-    def auto_repair(self, orig: str, simp: str, domain: str = "auto", api_key: Optional[str] = None):
+        def matches(it: Dict[str, Any]) -> bool:
+            if lang_l not in ("all", ""):
+                item_langs = it.get("langs") or [it.get("lang", "fr")]
+                if lang_l not in item_langs:
+                    return False
+            if not query_l:
+                return True
+            return (
+                query_l in it.get("original", "").lower()
+                or query_l in it.get("simplification", "").lower()
+                or query_l in it.get("category_name", "").lower()
+                or query_l in it.get("source", "").lower()
+                or query_l in it.get("lang_label", "").lower()
+            )
+
+        filtered = [it for it in self.dataset_items if matches(it)]
+
+        # When browsing default view ('all' + no query), interleave FR, EN, and HI evenly
+        if lang_l in ("all", "") and not query_l:
+            by_lang = {
+                "en": [it for it in filtered if it.get("lang") == "en"],
+                "hi": [it for it in filtered if it.get("lang") == "hi"],
+                "fr": [it for it in filtered if it.get("lang") == "fr"],
+            }
+            mixed: List[Dict[str, Any]] = []
+            idx = 0
+            while len(mixed) < limit and (idx < len(by_lang["en"]) or idx < len(by_lang["hi"]) or idx < len(by_lang["fr"])):
+                for code in ("en", "hi", "fr"):
+                    if idx < len(by_lang[code]) and len(mixed) < limit:
+                        mixed.append(by_lang[code][idx])
+                idx += 1
+            return mixed
+
+        # When filtering specific language, show monolingual native items first before cross-lingual pairs
+        if lang_l in ("en", "hi", "fr"):
+            primary = [it for it in filtered if it.get("lang") == lang_l]
+            secondary = [it for it in filtered if it.get("lang") != lang_l]
+            filtered = primary + secondary
+
+        return filtered[:limit]
+
+    def evaluate_document(self, orig: str, simp: str, domain: str = "auto"):
+        from demo_app.document_evaluator import DocumentEvaluator
+        return DocumentEvaluator.evaluate_document(self, orig, simp, domain=domain)
+
+    def auto_repair(self, orig: str, simp: str, domain: str = "auto", api_key: Optional[str] = None, target_lang: str = "auto"):
         from demo_app.auto_repair import ClosedLoopAutoRepair
-        return ClosedLoopAutoRepair.repair(self, orig, simp, domain=domain, api_key=api_key)
+        return ClosedLoopAutoRepair.repair(self, orig, simp, domain=domain, api_key=api_key, target_lang=target_lang)
 
     def multilevel_simplify(self, orig: str, domain: str = "auto"):
         from demo_app.auto_repair import ClosedLoopAutoRepair
