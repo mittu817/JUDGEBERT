@@ -559,12 +559,14 @@ class LegalGuardrails:
             "अधिकार", "बीमा", "हर्जाना", "उल्लंघन", "गोपनीय", "कर्मचारी", "किराएदार",
             # Indian Legal Judgments & Statutes (MILDSum)
             "court", "high court", "supreme court", "judgment", "ruling", "petitioner", "respondent",
-            "accused", "bail", "ndps", "act", "section", "decree", "order", "quashed", "reimbursement",
+            "accused", "bail", "ndps", "section", "decree", "quashed", "reimbursement",
             "अदालत", "कोर्ट", "हाईकोर्ट", "सुप्रीम कोर्ट", "फैसले", "फैसला", "निर्णय", "याचिका",
             "याचिकाकर्ता", "प्रतिवादी", "आरोपी", "अभियुक्त", "जमानत", "धारा", "अधिनियम", "डिक्री",
             "आदेश", "रद्द", "प्रतिपूर्ति", "दोषी", "दोषमुक्त", "खंडपीठ", "पूर्वाग्रह", "प्रावधान"
         ]
-        if any(m in text_lower for m in legal_markers):
+        # Short / prefix-ambiguous legal nouns require whole-word match so 'actually'/'manufactured'/'in order to' stay general
+        whole_word_legal_markers = [r"\bact\b", r"\border\b"]
+        if any(m in text_lower for m in legal_markers) or any(re.search(p, text_lower) for p in whole_word_legal_markers):
             return "legal"
         return "general"
 
@@ -620,13 +622,27 @@ class LegalGuardrails:
             if v_exc:
                 alerts.append({"type": "critical_exception", "level": "warning", "message": msg_exc, "penalty": pen_exc})
         else:
-            # General Polarity / Negation mismatch (including inherent negative/prohibitive predicates)
-            neg_en = {'not', 'never', 'neither', 'nor', 'cannot', "can't", "won't", "prohibited", "forbidden", "banned"}
-            neg_fr = {'ne', 'pas', 'aucun', 'aucune', 'nul', 'nulle', 'jamais', 'interdit', 'interdite', 'interdits', 'interdites', 'prohibé', 'défendu'}
-            w1 = set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', orig.lower()))
-            w2 = set(re.findall(r'\b[a-zA-Z\xc0-\xff]+\b', simp.lower()))
-            has_neg1 = bool(w1 & (neg_en | neg_fr))
-            has_neg2 = bool(w2 & (neg_en | neg_fr))
+            # General Polarity / Negation mismatch (across EN contractions, FR elisions, and HI Devanagari/Hinglish)
+            neg_en = {
+                'not', 'never', 'neither', 'nor', 'cannot', "can't", "won't", "don't", "doesn't", "didn't",
+                "isn't", "aren't", "wasn't", "weren't", "hasn't", "haven't", "hadn't", "couldn't", "wouldn't",
+                "shouldn't", "mustn't", "shan't", "no", "none", "nothing", "nowhere", "nobody",
+                "prohibited", "forbidden", "banned",
+            }
+            neg_fr = {
+                'ne', 'pas', 'aucun', 'aucune', 'nul', 'nulle', 'jamais',
+                'interdit', 'interdite', 'interdits', 'interdites', 'prohibé', 'défendu',
+            }
+            neg_hi = {'नहीं', 'नही', 'मत', 'ना', 'वर्जित', 'मनाही', 'निषेध', 'प्रतिबंधित', 'nahi', 'nahin'}
+
+            o_low = orig.lower().replace("’", "'")
+            s_low = simp.lower().replace("’", "'")
+            w1 = set(re.findall(r"[a-zA-Z\xc0-\xff']+|[\u0900-\u097F]+", o_low))
+            w2 = set(re.findall(r"[a-zA-Z\xc0-\xff']+|[\u0900-\u097F]+", s_low))
+
+            fr_elided_neg_re = re.compile(r"\bn'[a-zàâéèêëîïôûùüç]+\s+(?:pas|plus|jamais|rien|personne|aucun|aucune|guère)\b")
+            has_neg1 = bool(w1 & (neg_en | neg_fr | neg_hi)) or bool(fr_elided_neg_re.search(o_low))
+            has_neg2 = bool(w2 & (neg_en | neg_fr | neg_hi)) or bool(fr_elided_neg_re.search(s_low))
             if has_neg1 != has_neg2:
                 alerts.append({
                     "type": "general_polarity",

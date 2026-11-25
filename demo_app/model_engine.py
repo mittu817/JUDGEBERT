@@ -713,6 +713,19 @@ class JudgeBertEngine:
         # Blended Bidirectional NLI Score (65% Forward fidelity + 35% Reverse sufficiency)
         cross_encoder_score = 0.65 * score_f + 0.35 * score_r
 
+        # Suppress heuristic general_polarity mismatch when mDeBERTa-v3 confirms strong entailment with negligible contradiction
+        if (
+            resolved_domain == "general"
+            and len(gr_result["alerts"]) == 1
+            and gr_result["alerts"][0].get("type") == "general_polarity"
+            and p_entail_f >= 0.88
+            and p_contra_f < 0.08
+        ):
+            gr_result["total_penalty"] = max(0.0, gr_result["total_penalty"] - gr_result["alerts"][0].get("penalty", 8.5))
+            gr_result["alerts"] = []
+            gr_result["passed"] = True
+            gr_result["is_severe_contradiction"] = False
+
         # 4. Neural Contradiction Detection & False-Alarm Filtering
         # If the Cross-Encoder is strongly confident of contradiction (p_contra_f >= 0.75 or p_contra_f >= 0.55 with negligible entailment),
         # flag it as a genuine contradiction regardless of lexical overlap.
@@ -763,9 +776,14 @@ class JudgeBertEngine:
             gr_result["passed"] = False
 
         # Check for Over-simplification / Under-specification via Reverse Entailment
-        # If simplification is heavily compressed and reverse entailment is near zero
+        # Strictly enforce on legal clauses or when forward entailment is not already high (so concise general summaries aren't punished)
         compression = (1.0 - (len(simp_clean.split()) / max(len(orig_clean.split()), 1)))
-        if compression > 0.55 and p_entail_r < 0.08 and p_neutral_r > 0.85:
+        if (
+            compression > 0.55
+            and p_entail_r < 0.08
+            and p_neutral_r > 0.85
+            and (resolved_domain == "legal" or p_entail_f < 0.70)
+        ):
             gr_result["alerts"].append({
                 "type": "information_loss",
                 "level": "warning",
@@ -804,21 +822,38 @@ class JudgeBertEngine:
                 final_score = max(0.5, 10.0 * (1.0 - p_contra_f))
             else:
                 contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.25 else 0.0
-                if p_entail_f >= 0.60:
+                if p_entail_f >= 0.85 and p_contra_f < 0.10 and semantic_sim < 0.60:
+                    # Cross-script / concise entailment: lean cleanly on mDeBERTa-v3 forward faithfulness
+                    ce_faith = max(cross_encoder_score, 0.82 * score_f + 0.18 * score_r)
+                    xl_base = 0.80 * ce_faith + 0.20 * dense_score
+                elif p_entail_f >= 0.60:
                     xl_base = 0.60 * cross_encoder_score + 0.40 * dense_score
                 else:
                     xl_base = 0.30 * cross_encoder_score + 0.70 * dense_score
                 final_score = max(0.0, min(10.0, xl_base - contra_penalty - gr_result["total_penalty"]))
         elif (lang_o == "fr" and lang_s == "fr") or (lang_o == "hi" and lang_s == "hi"):
-            # French / Hindi Monolingual Legal: rely on fine-tuned multilingual model + guardrails
-            contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.30 else 0.0
-            final_score = max(0.0, min(10.0, dense_score - contra_penalty - gr_result["total_penalty"]))
+            # French / Hindi Monolingual: blend mDeBERTa-v3 NLI + fine-tuned multilingual embeddings + guardrails
+            if p_contra_f > 0.55 and semantic_sim < 0.65:
+                final_score = max(0.5, 10.0 * (1.0 - p_contra_f))
+            elif resolved_domain == "general":
+                if p_entail_f >= 0.90 and p_contra_f < 0.08:
+                    gen_base = 0.70 * score_f + 0.20 * dense_score + 0.10 * score_r
+                else:
+                    gen_base = 0.55 * score_f + 0.30 * dense_score + 0.15 * score_r
+                final_score = max(0.0, min(10.0, gen_base - gr_result["total_penalty"]))
+            else:
+                contra_penalty = p_contra_f * 3.0 if p_contra_f > 0.30 else 0.0
+                blended_mh = 0.50 * cross_encoder_score + 0.50 * dense_score
+                final_score = max(0.0, min(10.0, blended_mh - contra_penalty - gr_result["total_penalty"]))
         elif resolved_domain == "general":
             # General Context Monolingual: Plain Language & Factuality
             if p_contra_f > 0.60 and semantic_sim < 0.65:
                 final_score = max(0.5, 10.0 * (1.0 - p_contra_f))
             else:
-                gen_base = 0.45 * score_f + 0.45 * dense_score + 0.10 * score_r
+                if p_entail_f >= 0.90 and p_contra_f < 0.05 and semantic_sim < 0.55:
+                    gen_base = 0.65 * score_f + 0.25 * dense_score + 0.10 * score_r
+                else:
+                    gen_base = 0.45 * score_f + 0.45 * dense_score + 0.10 * score_r
                 final_score = max(0.0, min(10.0, gen_base - gr_result["total_penalty"]))
         else:
             # English Monolingual Legal
